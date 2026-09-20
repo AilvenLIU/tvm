@@ -113,14 +113,14 @@ void ModuleAttrs(ffi::Map<ffi::String, Any> attrs, bool allow_overwrite) {
   }
 }
 
-ffi::Optional<ffi::ObjectRef> ModuleGetAttr(const ffi::String& key) {
+Any ModuleGetAttr(const ffi::String& key) {
   if (IRBuilder::IsInScope()) {
     IRModuleFrame frame = FindModuleFrame();
     if (frame->attrs.find(key) != frame->attrs.end()) {
-      return frame->attrs[key].cast<ffi::ObjectRef>();
+      return frame->attrs[key];
     }
   }
-  return std::nullopt;
+  return Any();
 }
 
 void ModuleSetAttr(const ffi::String& key, const ffi::Optional<ffi::ObjectRef>& value,
