@@ -24,7 +24,7 @@ translation consumes construction policies without importing their owners.
 from contextlib import nullcontext
 from dataclasses import dataclass
 from inspect import signature
-from typing import Any
+from typing import Any, NamedTuple
 
 from tvm import ir
 
@@ -39,12 +39,23 @@ class _Missing:
 MISSING = _Missing()
 
 
-def expression_args(*fields, introduce=False, dtype=None):
+class ExpressionArguments(NamedTuple):
+    """Syntax policy shared by a constructor and every alias of it."""
+
+    fields: tuple[str, ...]
+    introduce: bool = False
+    dtype: Any = None
+    scalar_strings: bool = True
+
+
+def expression_args(*fields, introduce=False, dtype=None, scalar_strings=True):
     """Mark constructor fields whose nested strings are source expressions.
 
     ``introduce`` permits signature/match scopes to introduce otherwise unknown
     names. ``dtype`` optionally selects the dialect's symbol-construction policy;
-    it is metadata, never an evaluator or a replacement constructor.
+    it is metadata, never an evaluator or a replacement constructor. Set
+    ``scalar_strings=False`` when a bare string is literal shorthand while
+    strings nested in tuples/lists remain expressions.
     """
 
     def decorate(constructor):
@@ -52,7 +63,9 @@ def expression_args(*fields, introduce=False, dtype=None):
         unknown = set(fields).difference(parameters)
         if unknown:
             raise ValueError(f"Unknown expression argument fields: {sorted(unknown)}")
-        constructor.__tvm_expression_args__ = (tuple(fields), bool(introduce), dtype)
+        constructor.__tvm_expression_args__ = ExpressionArguments(
+            tuple(fields), bool(introduce), dtype, bool(scalar_strings)
+        )
         return constructor
 
     return decorate
