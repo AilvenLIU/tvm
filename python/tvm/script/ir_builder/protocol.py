@@ -21,6 +21,7 @@ and return concrete values. Dialects register their own function kinds here, so
 translation consumes construction policies without importing their owners.
 """
 
+from builtins import slice as slice
 from contextlib import nullcontext
 from dataclasses import dataclass
 from inspect import signature
@@ -69,6 +70,19 @@ def expression_args(*fields, introduce=False, dtype=None, scalar_strings=True):
         return constructor
 
     return decorate
+
+
+class DeclarationArguments(NamedTuple):
+    """Callable syntax that declares a symbol when its value argument is absent."""
+
+    value_parameter: str
+    dtype: Any = None
+
+
+def register_declaration(constructor, *, value_parameter="expr", dtype=None):
+    """Mark a concrete constructor's declaration form without wrapping the call."""
+    constructor.__tvm_declaration_args__ = DeclarationArguments(value_parameter, dtype)
+    return constructor
 
 
 @dataclass(frozen=True)

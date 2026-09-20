@@ -20,6 +20,8 @@ import builtins as _python
 from functools import partial as _partial
 from functools import wraps as _wraps
 
+import tvm_ffi as _ffi
+
 from tvm import ir as _ir
 from tvm import tirx as _tir
 from tvm.script.ir_builder import IRBuilder as _IRBuilder
@@ -28,6 +30,7 @@ from tvm.script.ir_builder.base import IRBuilderFrame as _NativeFrame
 from tvm.script.ir_builder.protocol import MISSING as _MISSING
 from tvm.script.ir_builder.protocol import at as _at
 from tvm.script.ir_builder.protocol import expression_args as _expression_args
+from tvm.script.ir_builder.protocol import register_declaration as _register_declaration
 from tvm.script.ir_builder.protocol import span_context as _span_context
 from tvm.tirx.script import builder as _T
 from tvm.tirx.script.builder import *  # pylint: disable=wildcard-import,unused-wildcard-import
@@ -205,11 +208,35 @@ def _check_unterminated():
         statements = last.seq
 
 
-def bind_(value=_MISSING, *, ty=None, name=None, span=None, name_span=None, previous=_MISSING):
+def bind_(
+    value=_MISSING,
+    *,
+    ty=None,
+    name=None,
+    span=None,
+    name_span=None,
+    previous=_MISSING,
+    declaration=False,
+):
     """Bind concrete values, preserving existing mutable scalar storage."""
     name_span = span if name_span is None else name_span
     _check_unterminated()
     with _span_context(span):
+        if declaration:
+            if not _ir.is_prim_var(value):
+                raise TypeError("A symbol declaration requires a concrete primitive variable")
+            if ty is not None:
+                annotation = ty() if callable(ty) else ty
+                annotation = annotation.ty if isinstance(annotation, _ir.Expr) else annotation
+                if not _ffi.structural_equal(annotation, value.ty):
+                    raise TypeError("The symbol declaration has an incompatible type")
+            if previous is not _MISSING:
+                if not _ir.is_prim_var(previous) or not _ffi.structural_equal(
+                    previous.ty, value.ty
+                ):
+                    raise TypeError("The symbol declaration has an incompatible signature dtype")
+                return previous
+            return _name(value, name, name_span)
         if previous is not _MISSING and isinstance(previous, _ir.TensorLoad):
             if value is _MISSING:
                 raise ValueError("A reassignment requires an initializer")
@@ -411,3 +438,10 @@ def shared_scalar(dtype="float32"):
 def match_buffer(*args, **kwargs):
     """Construct a native buffer match with resolved symbolic shape fields."""
     return _T.match_buffer(*args, **kwargs)
+
+
+# Constructor identities carry syntax policy; aliases share it without wrappers.
+for _constructor in vars(_T).values():
+    if isinstance(_constructor, _T.DtypeConstructor):
+        _register_declaration(_constructor, dtype=_constructor._dtype_str)
+del _constructor

@@ -221,13 +221,26 @@ def bind_(
     span=None,
     name_span=None,
     previous=_protocol.MISSING,
+    declaration=False,
 ):
     """Emit an immutable Relax binding and return the newly bound value."""
+    _check_unterminated()
+    if declaration:
+        if not _ir.is_prim_var(value):
+            raise TypeError("A symbol declaration requires a concrete primitive variable")
+        if ty is not None and not _ffi.structural_equal(_type(ty), value.ty):
+            raise TypeError("The symbol declaration has an incompatible type")
+        if previous is not _protocol.MISSING:
+            if not _ir.is_prim_var(previous) or not _ffi.structural_equal(previous.ty, value.ty):
+                raise TypeError("The symbol declaration has an incompatible signature dtype")
+            return previous
+        if name is not None:
+            _IRBuilder.name(name, value)
+        return _protocol.at(name_span if name_span is not None else span, value)
     if value is _protocol.MISSING:
         raise ValueError("Relax bindings require an initializer")
     if isinstance(value, _I.meta_var):
         return value.value
-    _check_unterminated()
     ty = None if ty is None else _type(ty)
     value = _value(value, ty)
     with _protocol.span_context(span):
