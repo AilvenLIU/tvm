@@ -1,0 +1,413 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+"""Concrete TIRx construction operations over the shared native IRBuilder stack."""
+
+import builtins as _python
+from functools import partial as _partial
+from functools import wraps as _wraps
+
+from tvm import ir as _ir
+from tvm import tirx as _tir
+from tvm.script.ir_builder import IRBuilder as _IRBuilder
+from tvm.script.ir_builder import ir as _I
+from tvm.script.ir_builder.base import IRBuilderFrame as _NativeFrame
+from tvm.script.ir_builder.protocol import MISSING as _MISSING
+from tvm.script.ir_builder.protocol import at as _at
+from tvm.script.ir_builder.protocol import expression_args as _expression_args
+from tvm.script.ir_builder.protocol import span_context as _span_context
+from tvm.tirx.script import builder as _T
+from tvm.tirx.script.builder import *  # pylint: disable=wildcard-import,unused-wildcard-import
+from tvm.tirx.script.builder import _ffi_api
+from tvm.tirx.script.builder import frame as _frame
+
+
+def type_var(name, *, dtype=None, span=None):
+    """Construct a signature symbol; shape symbols default to int64."""
+    return _ir.Var(name, "int64" if dtype is None else dtype, span)
+
+
+@_expression_args("shape", "strides", "elem_offset", "byte_offset", introduce=True)
+def Buffer(
+    shape,
+    dtype="float32",
+    data=None,
+    strides=None,
+    elem_offset=None,
+    byte_offset=None,
+    scope="global",
+    align=0,
+    offset_factor=0,
+    layout="default",
+    allocated_addr=None,
+    buffer_name="",
+    *,
+    span=None,
+):
+    """Construct a concrete buffer from resolved shape expressions."""
+    with _span_context(span):
+        return _at(
+            span,
+            _T.Buffer(
+                shape,
+                dtype,
+                data,
+                strides,
+                elem_offset,
+                byte_offset,
+                scope,
+                align,
+                offset_factor,
+                layout,
+                allocated_addr,
+                buffer_name,
+            ),
+        )
+
+
+buffer = Buffer
+
+
+def Ptr(dtype, storage_scope="global", *, span=None):
+    """Construct a concrete pointer variable usable as a function annotation."""
+    if callable(dtype) and not isinstance(dtype, _ir.Expr):
+        dtype = dtype()
+    if isinstance(dtype, _ir.Expr):
+        dtype = dtype.ty
+    if isinstance(dtype, _ir.PrimType):
+        dtype = dtype.dtype
+    with _span_context(span):
+        return _at(span, _T.ptr(dtype, storage_scope))
+
+
+class _Frame:
+    """Preserve a frame's source range through native finalization."""
+
+    def __init__(self, native, span=None):
+        self.native = native
+        self.span = span
+        self.result = {}
+
+    def __enter__(self):
+        with _span_context(self.span):
+            value = self.native.__enter__()
+        return self if value is self.native else value
+
+    def __exit__(self, *exc):
+        with _span_context(self.span):
+            return self.native.__exit__(*exc)
+
+    @property
+    def reference(self):
+        """Return the stable module reference after signature finalization."""
+        return self.native.global_var
+
+    def __getattr__(self, name):
+        return getattr(self.native, name)
+
+
+def function(*, private=False, s_tir=False, persistent=False, span=None):
+    """Enter a native primitive-function definition frame."""
+    with _span_context(span):
+        return _Frame(_T.prim_func(private=private, s_tir=s_tir, persistent=persistent), span)
+
+
+def decl_function(*, private=False, s_tir=False, persistent=False, span=None):
+    """Declare a bodyless signature using the native function frame."""
+    with _span_context(span):
+        return _Frame(_ffi_api.DeclFunction(private, s_tir, persistent), span)
+
+
+def arg(name, annotation, *, span=None):
+    """Use the same concrete parameter object in declaration and definition."""
+    if callable(annotation) and not isinstance(annotation, _ir.Expr):
+        annotation = annotation()
+    if isinstance(annotation, _ir.Type):
+        annotation = _ir.Var(name, annotation)
+    with _span_context(span):
+        if _tir.is_buffer_var(annotation) and annotation.ty.layout is not None:
+            frames = _IRBuilder.current().frames
+            if _python.any(
+                isinstance(frame, _frame.PrimFuncFrame) and frame.s_tir for frame in frames
+            ):
+                ty = annotation.ty
+                annotation = _T.Buffer(
+                    ty.shape,
+                    ty.dtype,
+                    strides=ty.strides,
+                    elem_offset=ty.elem_offset,
+                    scope=ty.storage_scope,
+                    align=ty.data_alignment,
+                    offset_factor=ty.offset_factor,
+                    layout=None,
+                    allocated_addr=list(ty.allocated_addr),
+                    buffer_name=name,
+                )
+        return _T.arg(name, _at(span, annotation))
+
+
+def func_ret_type(annotation, *, span=None):
+    """Set the signature's concrete return type."""
+    if callable(annotation) and not isinstance(annotation, _ir.Expr):
+        annotation = annotation()
+    if isinstance(annotation, _ir.Expr):
+        annotation = annotation.ty
+    with _span_context(span):
+        return _T.func_ret(annotation)
+
+
+def _name(value, name, span):
+    if name is not None:
+        _IRBuilder.name(name, value)
+    return _at(span, value)
+
+
+def _enter_concise(frame):
+    native = frame.native if isinstance(frame, _Frame) else frame
+    native.add_callback(_partial(frame.__exit__, None, None, None))
+    return frame.__enter__()
+
+
+def _as_expr(value):
+    if isinstance(value, _ir.Expr):
+        return value
+    if isinstance(value, str):
+        return _ir.StringImm(value)
+    if isinstance(value, list | tuple):
+        return _ir.Tuple([_as_expr(item) for item in value])
+    return _tir.const(value)
+
+
+def _check_unterminated():
+    frames = _IRBuilder.current().frames
+    if not frames or not isinstance(frames[-1], _frame.TIRFrame):
+        return
+    statements = frames[-1].stmts
+    while statements:
+        last = statements[-1]
+        if isinstance(last, _tir.Return | _tir.Break | _tir.Continue):
+            raise ValueError("An operation cannot follow an unconditional terminator")
+        if not isinstance(last, _tir.SeqStmt):
+            break
+        statements = last.seq
+
+
+def bind_(value=_MISSING, *, ty=None, name=None, span=None, name_span=None, previous=_MISSING):
+    """Bind concrete values, preserving existing mutable scalar storage."""
+    name_span = span if name_span is None else name_span
+    _check_unterminated()
+    with _span_context(span):
+        if previous is not _MISSING and isinstance(previous, _ir.TensorLoad):
+            if value is _MISSING:
+                raise ValueError("A reassignment requires an initializer")
+            _T.buffer_store(previous.source, value, previous.indices)
+            return previous
+        if isinstance(value, _I.meta_var):
+            return value.value
+        if isinstance(ty, _T.LocalVectorAnnotation):
+            if value is not _MISSING:
+                raise ValueError("Vector annotation does not support an initializer")
+            return _name(_T.alloc_local(ty.shape, ty.dtype), name, name_span)
+        if isinstance(ty, _T.LetAnnotation):
+            if value is _MISSING:
+                raise ValueError("An immutable binding requires an initializer")
+            value = _as_expr(value)
+            variable = _name(ty.as_var(rhs_dtype=value.ty), name, name_span)
+            _T.Bind(value, var=variable)
+            return variable
+        if value is _MISSING:
+            raise ValueError("Uninitialized scalar bindings are not supported")
+        if ty is not None:
+            annotation = ty() if callable(ty) and not isinstance(ty, _ir.Expr) else ty
+            annotation = annotation.ty if isinstance(annotation, _ir.Expr) else annotation
+            if not isinstance(annotation, _ir.PrimType) or str(annotation) == "handle":
+                raise TypeError("Mutable scalar annotations require a primitive scalar type")
+            result = _T.local_scalar(str(annotation)).scalar
+            _name(result.source, name, name_span)
+            _T.buffer_store(result.source, value, [0])
+            return result
+        if (
+            isinstance(value, _ir.TensorLoad)
+            and _tir.is_buffer_var(value.source)
+            and not value.source.name
+            and len(value.source.ty.shape) == 1
+            and isinstance(value.source.ty.shape[0], _tir.IntImm)
+            and value.source.ty.shape[0].value == 1
+        ):
+            _name(value.source, name, name_span)
+            return value
+        if isinstance(value, _T.scalar_wrapper):
+            _name(value.scalar.source, name, name_span)
+            return value.scalar
+        if isinstance(value, _NativeFrame | _Frame):
+            return _name(_enter_concise(value), name, name_span)
+        if isinstance(value, list | tuple):
+            for index, item in enumerate(value):
+                bind_(item, name=None if name is None else f"{name}_{index}", span=span)
+            return value
+        if getattr(type(value), "_is_meta_class", False):
+            if name is not None:
+                _T.name_meta_class_value(name, value)
+            return value
+        if _tir.is_buffer_var(value) or isinstance(value, _tir.IterVar | _tir.Layout):
+            return _name(value, name, name_span)
+        if isinstance(value, _ir.Var) and not value.name:
+            return _name(value, name, name_span)
+        if isinstance(value, _ir.TensorRegion):
+            return value
+        if not isinstance(value, _ir.Expr | _python.int | _python.float | _python.bool | str):
+            return value
+        value = _as_expr(value)
+        if _ir.is_prim_expr(value):
+            result = _T.local_scalar(str(value.ty.dtype)).scalar
+            _name(result.source, name, name_span)
+            _T.buffer_store(result.source, value, [0])
+            return result
+        return _name(_T.Bind(value), name, name_span)
+
+
+def emit_(value, *, span=None):
+    """Consume one expression statement, including effect-only calls."""
+    if value is None or isinstance(value, str | _ir.Var):
+        return
+    _check_unterminated()
+    with _span_context(span):
+        if isinstance(value, _NativeFrame | _Frame):
+            _enter_concise(value)
+        elif hasattr(value, "frames"):
+            for frame in value.frames:
+                _enter_concise(frame)
+        elif isinstance(value, _tir.BufferStore):
+            _T.buffer_store(value.buffer, value.value, value.indices)
+        else:
+            _T.evaluate(value)
+
+
+def setitem(target, key, value, *, span=None):
+    """Construct an indexed store after the caller has evaluated its operands."""
+    _check_unterminated()
+    with _span_context(span):
+        _T.buffer_store(target, value, key)
+
+
+def return_(value, *, span=None):
+    """Construct an IR return without exiting the Python construction helper."""
+    _check_unterminated()
+    if value is None:
+        raise TypeError("A primitive function return requires an expression")
+    with _span_context(span):
+        _T.Return(_as_expr(value))
+
+
+def _require_loop():
+    for frame in reversed(_IRBuilder.current().frames):
+        if isinstance(frame, _frame.ForFrame | _frame.WhileFrame):
+            return
+        if isinstance(frame, _frame.PrimFuncFrame):
+            break
+    raise ValueError("Loop control requires an enclosing primitive loop")
+
+
+def break_(*, span=None):
+    """Construct a break targeting the nearest primitive loop."""
+    _require_loop()
+    _check_unterminated()
+    with _span_context(span):
+        _T.Break()
+
+
+def continue_(*, span=None):
+    """Construct a continue targeting the nearest primitive loop."""
+    _require_loop()
+    _check_unterminated()
+    with _span_context(span):
+        _T.Continue()
+
+
+def assert_(condition, message="", *, span=None):
+    """Emit the native flat assertion with its own source range."""
+    _check_unterminated()
+    kind = "RuntimeError"
+    if isinstance(message, tuple):
+        if len(message) != 2 or not isinstance(message[0], str):
+            raise TypeError("Assertion metadata must be (error_kind, message_parts)")
+        kind, message = message
+    if isinstance(message, list | tuple):
+        message = [str(part) for part in message]
+    if not isinstance(message, list | tuple):
+        message = [message]
+    with _span_context(span):
+        with _T.Assert(condition, message, error_kind=kind):
+            pass
+
+
+def If(condition, *, span=None):
+    with _span_context(span):
+        return _Frame(_T.If(condition), span)
+
+
+def Then(*, span=None):
+    with _span_context(span):
+        return _Frame(_T.Then(), span)
+
+
+def Else(*, span=None):
+    with _span_context(span):
+        return _Frame(_T.Else(), span)
+
+
+def For(iterable, *, span=None):
+    """Adapt a native loop frame, or a Python range, to construction scope."""
+    if isinstance(iterable, _python.range):
+        iterable = _T.serial(iterable.start, iterable.stop, step=iterable.step)
+    if not isinstance(iterable, _frame.ForFrame):
+        raise TypeError("A primitive for loop requires a native loop frame or range")
+    return _Frame(iterable, span)
+
+
+def While(condition, *, span=None):
+    with _span_context(span):
+        return _Frame(_T.While(condition), span)
+
+
+def unpack(value):
+    """Project a concrete IR tuple of known arity, preserving Python iteration."""
+    if isinstance(value, _ir.Tuple):
+        return _python.tuple(value.fields)
+    if isinstance(value, _ir.Expr) and isinstance(value.ty, _ir.TupleType):
+        return _python.tuple(_ir.TupleGetItem(value, i) for i in range(len(value.ty.fields)))
+    return value
+
+
+def alloc_scalar(dtype="float32", scope="global"):
+    """Allocate scalar storage and return its concrete load expression."""
+    value = _T.alloc_scalar(dtype, scope)
+    return value.scalar if isinstance(value, _T.scalar_wrapper) else value
+
+
+def local_scalar(dtype="float32"):
+    return alloc_scalar(dtype, "local")
+
+
+def shared_scalar(dtype="float32"):
+    return alloc_scalar(dtype, "shared")
+
+
+@_expression_args("shape", "strides", "elem_offset", introduce=True)
+@_wraps(_T.match_buffer)
+def match_buffer(*args, **kwargs):
+    """Construct a native buffer match with resolved symbolic shape fields."""
+    return _T.match_buffer(*args, **kwargs)
