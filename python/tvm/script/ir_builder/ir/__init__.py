@@ -17,6 +17,7 @@
 # under the License.
 """Package tvm.script.ir_builder.ir"""
 
+from ..protocol import MISSING, _at, expression_args
 from .frame import IRModuleFrame
 from .ir import (
     decl_function,
