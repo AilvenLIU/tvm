@@ -127,8 +127,7 @@ TVM_DLL tvm::Var EmitMatchCast(const tvm::relax::Expr& value, const tvm::Type& t
 TVM_DLL tvm::Var EmitVarBinding(const tvm::relax::VarBinding& binding);
 
 /*! \brief Emit a binding with separate statement and variable-name ranges. */
-TVM_DLL tvm::Var EmitV2(const tvm::relax::Expr& value,
-                        const ffi::Optional<tvm::Type>& annotate_ty,
+TVM_DLL tvm::Var EmitV2(const tvm::relax::Expr& value, const ffi::Optional<tvm::Type>& annotate_ty,
                         const ffi::Optional<Span>& name_span);
 
 /*! \brief Emit a match cast with separate statement and variable-name ranges. */

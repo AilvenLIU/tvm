@@ -203,8 +203,7 @@ void PrimFuncFrameNode::ExitWithScope() {
     // Define the function.
     // Note we do checks to disallow redefinition of functions inside the `DefFunction`.
     if (!global_var.has_value()) {
-      TVM_FFI_CHECK(!is_declaration, ValueError)
-          << "function " << func_name << " already exists";
+      TVM_FFI_CHECK(!is_declaration, ValueError) << "function " << func_name << " already exists";
       global_var = frame->global_var_map.at(func_name);
     }
     if (!is_declaration) {

@@ -81,9 +81,8 @@ GlobalVar ReserveFunction(const ffi::String& func_name) {
 
 GlobalVar DeclFunction(const ffi::String& func_name, const BaseFunc& func_signature) {
   IRModuleFrame frame = FindModuleFrame();
-  GlobalVar gv = frame->global_var_map.count(func_name)
-                     ? frame->global_var_map.at(func_name)
-                     : GlobalVar(func_name);
+  GlobalVar gv = frame->global_var_map.count(func_name) ? frame->global_var_map.at(func_name)
+                                                        : GlobalVar(func_name);
   TVM_FFI_CHECK(!frame->functions.count(gv), ValueError)
       << "function " << func_name << " already exists";
   if (auto ty = GetGlobalVarType(func_signature)) {

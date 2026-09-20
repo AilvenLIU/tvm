@@ -116,7 +116,8 @@ inline tvm::relax::SeqExpr GetSeqExprForBranch(const SeqExprFrame& frame, ffi::S
   if (var_binding && tvm::relax::IsLeafOrTuple(var_binding->value)) {
     body = var_binding->value;
   } else if (var_binding) {
-    last_block_bindings.push_back(tvm::relax::VarBinding(new_var, var_binding->value, var_binding->span));
+    last_block_bindings.push_back(
+        tvm::relax::VarBinding(new_var, var_binding->value, var_binding->span));
     body = new_var;
   } else if (const auto* match_cast = last_binding.as<tvm::relax::MatchCastNode>()) {
     last_block_bindings.push_back(

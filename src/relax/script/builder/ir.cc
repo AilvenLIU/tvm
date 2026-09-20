@@ -281,8 +281,7 @@ tvm::Var RecordBindingSpan(tvm::Var var, const ffi::Optional<Span>& name_span) {
 
 }  // namespace
 
-tvm::Var EmitV2(const tvm::relax::Expr& value,
-                const ffi::Optional<tvm::Type>& annotate_ty,
+tvm::Var EmitV2(const tvm::relax::Expr& value, const ffi::Optional<tvm::Type>& annotate_ty,
                 const ffi::Optional<Span>& name_span) {
   return RecordBindingSpan(Emit(value, annotate_ty), name_span);
 }

@@ -82,9 +82,9 @@ void FunctionFrameNode::ExitWithScope() {
         << "A function declaration requires an IRModule frame";
     RelaxFrameNode::ExitWithScope();
     block_builder->EndScope();
-    function = tvm::relax::Function::CreateEmpty(
-        params, ret_ty.value_or(tvm::relax::AnyType()), is_pure.value_or(true),
-        DictAttrs(attrs), source_span);
+    function =
+        tvm::relax::Function::CreateEmpty(params, ret_ty.value_or(tvm::relax::AnyType()),
+                                          is_pure.value_or(true), DictAttrs(attrs), source_span);
     if (local) {
       local_var = tvm::Var(name.value(), tvm::relax::GetType(function.value()), source_span);
     } else {
@@ -98,7 +98,8 @@ void FunctionFrameNode::ExitWithScope() {
       << "A Relax function must have a return value. Please use "
          "`return` to return an Expr";
 
-  Expr body = this->block_builder->Normalize(tvm::relax::SeqExpr(binding_blocks, output.value(), source_span));
+  Expr body = this->block_builder->Normalize(
+      tvm::relax::SeqExpr(binding_blocks, output.value(), source_span));
   // if the function is not private, add a global symbol to its attributes
   if (!is_private.value_or(false) && name.has_value() && !attrs.count(tvm::attr::kGlobalSymbol)) {
     attrs.Set(tvm::attr::kGlobalSymbol, name.value());
