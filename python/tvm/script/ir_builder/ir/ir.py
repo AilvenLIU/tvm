@@ -66,6 +66,11 @@ def ir_module() -> IRModuleFrame:
     return _ffi_api.IRModule()  # type: ignore[attr-defined] # pylint: disable=no-member
 
 
+def reserve_function(func_name: str) -> GlobalVar:
+    """Reserve a module identity before a declaration frame evaluates its signature."""
+    return _ffi_api.ReserveFunction(func_name)
+
+
 def decl_function(func_name: str, func_signature: BaseFunc) -> GlobalVar:
     """Declare a Function without given the specific function implementation.
 

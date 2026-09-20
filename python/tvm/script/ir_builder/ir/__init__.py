@@ -20,6 +20,7 @@
 from ..protocol import MISSING, _at, expression_args
 from .frame import IRModuleFrame
 from .ir import (
+    reserve_function,
     decl_function,
     def_function,
     ir_module,

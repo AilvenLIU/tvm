@@ -195,7 +195,8 @@ void PrimFuncFrameNode::ExitWithScope() {
            "function scope, if it's defined in a Module";
     const ir::IRModuleFrame& frame = opt_frame.value();
     const ffi::String& func_name = name.value_or("");
-    if (!frame->global_var_map.count(func_name)) {
+    if (!frame->global_var_map.count(func_name) ||
+        !frame->functions.count(frame->global_var_map.at(func_name))) {
       // Case. First time visiting the function.
       global_var = ir::DeclFunction(func_name, func);
     }
