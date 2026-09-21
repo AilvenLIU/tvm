@@ -20,6 +20,7 @@
 import sys as _sys
 
 from tvm import relax as _relax
+from tvm.relax.base_py_module import PyModuleFactory as _PyModuleFactory
 from tvm.script.parser_v2.frontend import make_decorator as _make_decorator
 from tvm.script.parser_v2.frontend import make_helper as _make_helper
 from tvm.script.parser_v2.frontend import register_namespace as _register_namespace
@@ -47,4 +48,11 @@ def _opaque_function(name, function, source, span):
     )
 
 
-_register_opaque_factory(_opaque_function)
+def _python_module(module, original, bases):
+    candidates = (original, *bases)
+    if any(isinstance(base, type) and issubclass(base, _relax.BasePyModule) for base in candidates):
+        return _PyModuleFactory(module, original_class=original)
+    return module
+
+
+_register_opaque_factory(_opaque_function, module_adapter=_python_module)
