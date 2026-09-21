@@ -44,6 +44,7 @@ _EXECUTION = SimpleNamespace(
     is_python_bool=construction.is_python_bool,
     slice=slice,
     locals=locals,
+    globals=globals,
 )
 _NAMESPACES = {}
 

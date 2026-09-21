@@ -1224,6 +1224,22 @@ class IRBuilderTranspiler(ast.NodeTransformer):
                     node.returns,
                 )
             )
+        # A factory-local capture must preserve ordinary Python builtin lookup.
+        # Inject immutable host bindings under hygienic aliases rather than
+        # introducing a local that is unbound when absent from outer locals().
+        builtin_captures = {}
+        for name in annotation_names | introduced_names:
+            if hasattr(builtins, name):
+                alias = self.fresh("_t")
+                bindings[alias] = getattr(builtins, name)
+                builtin_captures[name] = alias
+
+        def captured_value(name):
+            args = [ast.Constant(name)]
+            if name in builtin_captures:
+                args.append(self._name(builtin_captures[name], node))
+            return self._call(captures, "get", args, node)
+
         capture_statements = []
         for name in sorted(
             (annotation_names | introduced_names)
@@ -1232,12 +1248,14 @@ class IRBuilderTranspiler(ast.NodeTransformer):
         ):
             # A real enclosing binding remains visible before a signature string
             # assigns the same spelling; absent names still raise before first use.
-            condition = ast.Compare(ast.Constant(name), [ast.In()], [self._name(captures, node)])
+            condition = (
+                ast.Constant(True)
+                if name in builtin_captures
+                else ast.Compare(ast.Constant(name), [ast.In()], [self._name(captures, node)])
+            )
             # Establish Python locals before registered declaration expressions
             # read namespace aliases; symbol resolution follows predeclaration.
-            initial = self._assign(
-                name, self._call(captures, "get", [ast.Constant(name)], node), node
-            )
+            initial = self._assign(name, captured_value(name), node)
             factory_body.append(
                 self._located(ast.If(copy.deepcopy(condition), [initial], []), node)
             )
@@ -1246,7 +1264,7 @@ class IRBuilderTranspiler(ast.NodeTransformer):
                 self._call(
                     record,
                     "capture",
-                    [ast.Constant(name), self._call(captures, "get", [ast.Constant(name)], node)],
+                    [ast.Constant(name), captured_value(name)],
                     node,
                 ),
                 node,
@@ -1333,7 +1351,7 @@ class IRBuilderTranspiler(ast.NodeTransformer):
                 self._call(
                     record,
                     "capture",
-                    [ast.Constant(name), self._call(captures, "get", [ast.Constant(name)], node)],
+                    [ast.Constant(name), captured_value(name)],
                     node,
                 )
             )
@@ -1359,7 +1377,18 @@ class IRBuilderTranspiler(ast.NodeTransformer):
                     args=[ast.arg(captures)],
                     kwonlyargs=[],
                     kw_defaults=[],
-                    defaults=[self._call(self.infrastructure_name, "locals", [], node)],
+                    # Nested bodies may use namespaces from module globals
+                    # without loading them into their Python local dictionary.
+                    # Locals override globals exactly as lexical lookup does.
+                    defaults=[
+                        ast.Dict(
+                            keys=[None, None],
+                            values=[
+                                self._call(self.infrastructure_name, "globals", [], node),
+                                self._call(self.infrastructure_name, "locals", [], node),
+                            ],
+                        )
+                    ],
                 ),
                 factory_body,
                 [],
