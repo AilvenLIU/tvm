@@ -844,8 +844,9 @@ def bind_(
 
     Notes
     -----
-    Expression inputs emit in the active native function/block. TypeVarDecl updates the
-    nearest symbol frame. Existing native Emit rules fill MissingType on the original RHS
+    Anonymous primitive declarations and TypeVarDecl reuse the nearest symbol frame.
+    Named primitive variables and computed expressions emit fresh bindings in the active
+    native function/block. Existing native Emit rules fill MissingType on the original RHS
     before normalization and check concrete annotations. This operation adds no recursive
     annotation validation or propagation to tuple fields or call arguments.
 
@@ -855,6 +856,11 @@ def bind_(
     """
     _check_unterminated()
     name_span = _source_span(span if name_span is None else name_span)
+    # Shared dtype constructors return anonymous primitive Vars. Reuse the
+    # signature's canonical symbol for declarations, while named aliases and
+    # computed primitive expressions retain ordinary Relax binding semantics.
+    if ty is None and not frame_value and _ir.is_prim_var(value) and not value.name:
+        return _TypeVarFrame.current().resolve(name, value.ty, span=name_span)
     if isinstance(value, _TypeVarDecl):
         return _TypeVarFrame.current().resolve(name, value.ty, span=name_span)
     if frame_value:
