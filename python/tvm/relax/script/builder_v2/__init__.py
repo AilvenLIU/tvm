@@ -19,6 +19,8 @@
 # pylint: disable=wildcard-import,redefined-builtin,invalid-name
 import builtins as _python
 import numbers as _numbers
+import sys as _sys
+from functools import partial as _partial
 
 import tvm_ffi as _ffi
 
@@ -445,3 +447,14 @@ def select(condition, true_value, false_value):
 
 
 __all__ += ["logical_and", "logical_not", "logical_or", "select"]
+
+
+def _call_global(function, *args):
+    return _relax.Call(function, [_relax.utils.convert_to_expr(value) for value in args])
+
+
+def _global_callee(function):
+    return _partial(_call_global, function)
+
+
+_protocol.register_call_kind(_sys.modules[__name__], _ir.GlobalVar, _global_callee)

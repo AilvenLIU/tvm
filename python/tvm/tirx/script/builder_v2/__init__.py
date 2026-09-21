@@ -17,6 +17,7 @@
 """Concrete TIRx construction operations over the shared native IRBuilder stack."""
 
 import builtins as _python
+import sys as _sys
 from functools import partial as _partial
 from functools import wraps as _wraps
 
@@ -30,6 +31,7 @@ from tvm.script.ir_builder.base import IRBuilderFrame as _NativeFrame
 from tvm.script.ir_builder.protocol import MISSING as _MISSING
 from tvm.script.ir_builder.protocol import at as _at
 from tvm.script.ir_builder.protocol import expression_args as _expression_args
+from tvm.script.ir_builder.protocol import register_call_kind as _register_call_kind
 from tvm.script.ir_builder.protocol import register_declaration as _register_declaration
 from tvm.script.ir_builder.protocol import span_context as _span_context
 from tvm.tirx.script import builder as _T
@@ -549,3 +551,10 @@ def select(condition, true_value, false_value):
     if not isinstance(condition, _ir.Expr):
         return true_value if condition else false_value
     return _tir.if_then_else(condition, true_value, false_value)
+
+
+def _global_callee(function):
+    return _partial(_T.ir._call_global, function)
+
+
+_register_call_kind(_sys.modules[__name__], _ir.GlobalVar, _global_callee)
