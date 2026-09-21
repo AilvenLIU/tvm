@@ -40,6 +40,10 @@ class AnnotationScope:
         self.symbols = {}
         self._evaluated = {}
         self._prepared = {}
+        self._pending_parameters = {}
+        self._parameter_annotations = {}
+        self._unbound_parameters = set()
+        self._shape_declarations = {}
         self._type_vars = {}
         self._counter = 0
         self._used_names = set(env)
@@ -143,13 +147,12 @@ class AnnotationScope:
         return ast.copy_location(ast.Name(name, ast.Load()), node)
 
     def prepare_parameters(self, arguments):
-        """Preallocate scalar parameter identities before dependent annotations.
+        """Prepare declared symbols and sequential scalar parameter annotations.
 
-        Scalar constructors own dtype metadata. Cached dtype expressions are
-        substituted in the annotation, so even a dynamic dtype is evaluated once.
-        ``symbols`` contains scalar parameter objects for the signature builder.
-        The caller evaluates annotations and registers parameters sequentially,
-        making each actual parameter available to subsequent annotations.
+        Declaration constructors reserve identities before dependent annotations.
+        Type constructors introduce their parameters in signature order. Cached
+        dtype expressions are evaluated once. Bare symbolic strings declare shape
+        names across the signature; compound expressions only reference them.
         """
         parameters = [*arguments.posonlyargs, *arguments.args, *arguments.kwonlyargs]
         self._used_names.update(
@@ -188,7 +191,14 @@ class AnnotationScope:
                             keyword.value = cached
             else:
                 continue
-            self._symbol(parameter.arg, parameter, dtype, shadow=True)
+            if declaration is not None:
+                self._symbol(parameter.arg, parameter, dtype, shadow=True)
+                self._parameter_annotations[id(annotation)] = parameter.arg
+                self._unbound_parameters.add(parameter.arg)
+            else:
+                self._pending_parameters[id(annotation)] = (parameter, dtype)
+        for prepared in self._prepared.values():
+            self.rewrite(prepared, introduce=True, collect_declarations=True)
         return self.symbols
 
     def _eval(self, node):
@@ -200,6 +210,14 @@ class AnnotationScope:
         """Evaluate an annotation once in the prepared signature scope."""
         key = id(node)
         if key not in self._evaluated:
+            self._unbound_parameters.discard(self._parameter_annotations.get(key))
+            if key in self._pending_parameters:
+                parameter, dtype = self._pending_parameters[key]
+                if parameter.arg in self.symbols:
+                    self._error(
+                        parameter, "A later parameter cannot adopt an existing shape symbol"
+                    )
+                self._symbol(parameter.arg, parameter, dtype, shadow=True)
             prepared = self._prepared.get(key, node)
             # A quoted whole annotation is ordinary Python annotation syntax.
             if isinstance(prepared, ast.Constant) and isinstance(prepared.value, str):
@@ -275,7 +293,7 @@ class AnnotationScope:
             index = end
         return positions if decoded == node.value else None
 
-    def rewrite(self, node, *, introduce=False):
+    def rewrite(self, node, *, introduce=False, collect_declarations=False):
         """Return a copied expression AST, registering new symbols in ``env``.
 
         Construction code must execute with this scope's updated environment.
@@ -286,19 +304,36 @@ class AnnotationScope:
         class Rewrite(ast.NodeTransformer):
             def __init__(self):
                 self.allow_names = False
+                self.in_string = False
                 self.dtype = None
 
             def visit_Name(self, current):
+                if collect_declarations:
+                    return current
                 if isinstance(current.ctx, ast.Load):
+                    if not self.in_string and current.id in scope._unbound_parameters:
+                        scope._error(current, f"Parameter {current.id!r} is not yet bound")
+                    if (
+                        self.allow_names
+                        and not self.in_string
+                        and current.id not in scope.env
+                        and not hasattr(builtins, current.id)
+                    ):
+                        scope._error(current, f"Name {current.id!r} is not defined")
                     if isinstance(scope.env.get(current.id), TypeVar) and not introduce:
                         scope._error(
                             current, "A TypeVar must be introduced in a signature or match scope"
                         )
                     scope._canonical_type_var(current.id, current, self.dtype)
-                    if self.allow_names and (
-                        current.id in scope.env or not hasattr(builtins, current.id)
-                    ):
+                    if self.allow_names and current.id in scope.env:
                         scope._symbol(current.id, current, self.dtype)
+                    elif (
+                        self.allow_names
+                        and self.in_string
+                        and current.id in scope._shape_declarations
+                    ):
+                        declaration, dtype = scope._shape_declarations[current.id]
+                        scope._symbol(current.id, declaration, dtype)
                 return current
 
             def visit_Attribute(self, current):
@@ -309,7 +344,7 @@ class AnnotationScope:
                 return current
 
             def expression_field(self, current, metadata, *, nested=False):
-                old_allow, old_dtype = self.allow_names, self.dtype
+                old_allow, old_dtype, old_string = self.allow_names, self.dtype, self.in_string
                 self.allow_names = introduce and metadata.introduce
                 self.dtype = metadata.dtype
                 try:
@@ -322,9 +357,14 @@ class AnnotationScope:
                     if isinstance(current, ast.Constant) and isinstance(current.value, str):
                         if nested or metadata.scalar_strings:
                             current = scope._string_expression(current)
+                            self.in_string = True
+                            if self.allow_names and isinstance(current, ast.Name):
+                                scope._shape_declarations.setdefault(
+                                    current.id, (current, self.dtype)
+                                )
                     return self.visit(current)
                 finally:
-                    self.allow_names, self.dtype = old_allow, old_dtype
+                    self.allow_names, self.dtype, self.in_string = old_allow, old_dtype, old_string
 
             def visit_Call(self, current):
                 constructor = scope._resolve(current.func)

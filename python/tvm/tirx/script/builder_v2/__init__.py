@@ -45,7 +45,7 @@ def type_var(name, *, dtype=None, span=None):
     return _ir.Var(name, "int64" if dtype is None else dtype, span)
 
 
-@_expression_args("shape", "strides", "elem_offset", "byte_offset", introduce=True)
+@_expression_args("shape", "strides", "elem_offset", "byte_offset", introduce=True, dtype="int32")
 def Buffer(
     shape,
     dtype="float32",
@@ -187,6 +187,8 @@ def _enter_concise(frame):
 
 
 def _as_expr(value):
+    if isinstance(value, _ffi.ObjectConvertible):
+        value = value.asobject()
     if isinstance(value, _ir.Expr):
         return value
     if isinstance(value, str):
@@ -203,7 +205,12 @@ def _check_unterminated():
     statements = frames[-1].stmts
     while statements:
         last = statements[-1]
-        if isinstance(last, _tir.Return | _tir.Break | _tir.Continue):
+        if isinstance(last, _tir.Return | _tir.Break | _tir.Continue) or (
+            isinstance(last, _tir.Evaluate)
+            and isinstance(last.value, _tir.Call)
+            and isinstance(last.value.op, _ir.Op)
+            and last.value.op.name in ("tirx.break_loop", "tirx.continue_loop")
+        ):
             raise ValueError("An operation cannot follow an unconditional terminator")
         if not isinstance(last, _tir.SeqStmt):
             break
@@ -226,6 +233,8 @@ def bind_(
     _check_unterminated()
     with _span_context(span):
         if frame_value:
+            if isinstance(value, _frame.SBlockFrame):
+                raise TypeError("A block does not introduce an as-target value")
             if isinstance(value, _python.list | _python.tuple | _ir.Array):
                 for index, item in enumerate(value):
                     bind_(
@@ -240,6 +249,16 @@ def bind_(
             elif isinstance(value, _ir.TensorLoad) and _tir.is_buffer_var(value.source):
                 _name(value.source, name, name_span)
             return value
+        if previous is not _MISSING and (
+            _tir.is_buffer_var(previous)
+            or isinstance(previous, _tir.IterVar)
+            or _python.any(
+                isinstance(frame, _frame.SBlockFrame)
+                and _python.any(axis.var.same_as(previous) for axis in frame.iter_vars)
+                for frame in _IRBuilder.current().frames
+            )
+        ):
+            raise ValueError(f"Cannot rebind buffer or block axis {name!r}")
         if declaration:
             if not _ir.is_prim_var(value):
                 raise TypeError("A symbol declaration requires a concrete primitive variable")
@@ -371,7 +390,7 @@ def break_(*, span=None):
     _require_loop()
     _check_unterminated()
     with _span_context(span):
-        _T.Break()
+        _T.evaluate(_T.break_loop())
 
 
 def continue_(*, span=None):
@@ -379,7 +398,7 @@ def continue_(*, span=None):
     _require_loop()
     _check_unterminated()
     with _span_context(span):
-        _T.Continue()
+        _T.evaluate(_T.continue_loop())
 
 
 def assert_(condition, message="", *, span=None):
@@ -451,7 +470,7 @@ def shared_scalar(dtype="float32"):
     return alloc_scalar(dtype, "shared")
 
 
-@_expression_args("shape", "strides", "elem_offset", introduce=True)
+@_expression_args("shape", "strides", "elem_offset", introduce=True, dtype="int32")
 @_wraps(_T.match_buffer)
 def match_buffer(*args, **kwargs):
     """Construct a native buffer match with resolved symbolic shape fields."""
@@ -517,4 +536,4 @@ def select(condition, true_value, false_value):
     """Construct a conditional expression or select an ordinary Python value."""
     if not isinstance(condition, _ir.Expr):
         return true_value if condition else false_value
-    return _tir.Select(condition, true_value, false_value)
+    return _tir.if_then_else(condition, true_value, false_value)
