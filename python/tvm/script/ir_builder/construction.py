@@ -23,6 +23,7 @@ transpiler state. Generated Python calls these operations in source order.
 
 from contextlib import contextmanager
 from types import SimpleNamespace
+from typing import TypeVar
 
 from tvm import ir
 
@@ -322,16 +323,22 @@ class FunctionRecord:
         Returns
         -------
         object
-            Existing canonical symbol, or fallback unchanged.
+            Existing canonical symbol, a symbol resolved from a host TypeVar,
+            or any other fallback unchanged.
 
         Notes
         -----
-        No symbols or frames are introduced and no fallback is cached.
+        A host TypeVar resolves in this record's retained symbol frame before
+        annotation arithmetic executes. Explicit predeclarations have already
+        run, so they retain their requested dtype. No frame is entered and
+        ordinary host values are neither converted nor cached.
 
         Examples
         --------
         >>> value = record.capture("n", outer_n)
         """
+        if isinstance(fallback, TypeVar):
+            return self.symbols.resolve(name)
         return self.symbols.symbols.get(name, fallback)
 
     def returns(self, annotation):
