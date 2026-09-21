@@ -302,9 +302,17 @@ def bind_(
 
 
 def emit_(value, *, span=None):
-    """Consume an expression statement; effect-only operations return None."""
-    if value is not None:
-        bind_(value, span=span)
+    """Emit a void expression statement, retaining effect-only operations returning None."""
+    if value is None:
+        return
+    if not isinstance(value, _relax.Expr):
+        raise TypeError(f"Unsupported expression statement value: {type(value).__name__}")
+    result = bind_(value, name="_", span=span)
+    if not isinstance(result.ty, _ir.TupleType) or len(result.ty.fields) != 0:
+        raise ValueError(
+            "Non-void expressions must be bound to a variable; "
+            f"expression of type {result.ty} was used as a statement"
+        )
 
 
 def return_(value=None, *, span=None):
