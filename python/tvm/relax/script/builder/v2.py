@@ -777,14 +777,6 @@ def Else(*, span=None):
     return _Frame(_native.Else(), span)
 
 
-def _check_unterminated():
-    for active_frame in reversed(_IRBuilder.current().frames):
-        if isinstance(active_frame, _frame.FunctionFrame):
-            if active_frame.output is not None:
-                raise ValueError("A Relax operation cannot follow an unconditional return")
-            break
-
-
 def _value(value, ty=None):
     if isinstance(value, _python.tuple):
         return _relax.utils.convert_to_expr(value)
@@ -836,7 +828,7 @@ def bind_(
     Raises
     ------
     ValueError
-        Initializer is missing or an operation follows an unconditional return.
+        Initializer is missing.
     TypeError
         A declaration or match-cast annotation is incompatible.
     tvm.error.TVMError
@@ -854,7 +846,6 @@ def bind_(
     --------
     >>> y = bind_(value, ty=Object(), name="y")
     """
-    _check_unterminated()
     name_span = _source_span(span if name_span is None else name_span)
     # Shared dtype constructors return anonymous primitive Vars. Reuse the
     # signature's canonical symbol for declarations, while named aliases and
@@ -978,21 +969,18 @@ def return_(value=None, *, span=None):
 
     Raises
     ------
-    ValueError
-        An unconditional return has already been recorded.
     tvm.error.TVMError
-        The active native frame rejects the operation or its concrete types.
+        The active native frame rejects the operation, its concrete types, or
+        a duplicate return.
 
     Notes
     -----
-    Subsequent ordinary Relax binding operations are rejected. This operation enters no new
-    construction frame.
+    The native function builder owns return validation. No new frame is entered.
 
     Examples
     --------
     >>> return_(value)
     """
-    _check_unterminated()
     with _construction_span(span):
         if value is None:
             value = _relax.Tuple([])
