@@ -322,15 +322,22 @@ def test_annotation_identity_effects_and_recovery(postponed, monkeypatch):
         from typing import TypeVar
         from tvm.script import relax as R
         tensor = R.Tensor
-        calls, errors, functions = [], [], []
+        calls, errors, functions, captures = [], [], [], []
         def note(label):
             calls.append(label)
             return "float32"
-        for dtype in ["definitely_invalid_dtype", "float32", "float32"]:
+        def keep(value):
+            captures.append(value)
+            return value
+        def dtypeval(value):
+            if value == "argument_error":
+                raise ValueError("annotation argument failed")
+            return value
+        for dtype in ["argument_error", "definitely_invalid_dtype", "float32", "float32"]:
             M = TypeVar("M")
             try:
                 @R.function
-                def f(x: tensor(("n", M), note("x")), y: tensor((8,), dtype)) -> \
+                def f(x: keep(tensor(("n", M), note("x"))), y: tensor((8,), dtypeval(dtype))) -> \
                     'tensor(("n", M), note("return"))': return x
                 functions.append(f)
             except Exception as error:
@@ -346,9 +353,12 @@ def test_annotation_identity_effects_and_recovery(postponed, monkeypatch):
         postponed,
         monkeypatch,
     )
-    assert len(module.errors) == 1
-    assert "unknown dtype" in str(module.errors[0]).lower()
-    assert module.calls == ["x", "x", "return", "x", "return", "object", "object"]
+    assert len(module.errors) == 2
+    assert "annotation argument failed" in str(module.errors[0])
+    assert "unknown dtype" in str(module.errors[1]).lower()
+    assert module.calls == ["x", "x", "x", "return", "x", "return", "object", "object"]
+    for first, second in zip(module.captures, module.captures[1:]):
+        assert not first.shape[0].same_as(second.shape[0])
     first, second = module.functions
     for function in module.functions:
         for argument_dim, return_dim in zip(function.params[0].ty.shape, function.ret_ty.shape):

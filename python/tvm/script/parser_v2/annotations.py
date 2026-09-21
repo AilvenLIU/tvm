@@ -507,6 +507,14 @@ def enable_eager_constructors(builder, *, classes=()):
                     states = caller.f_locals.setdefault("__tvm_eager_annotations__", {})
                     key = (node.name, caller.f_code.co_filename)
                     state = states.get(key)
+                    site = (node.lineno, caller.f_lasti)
+                    # A host argument may fail before entering any constructor.
+                    # Re-entering a definition therefore starts a fresh signature,
+                    # even when its decorator never got a chance to consume it.
+                    if state is not None and (
+                        site[0] != state._eager_site[0] or site[1] <= state._eager_site[1]
+                    ):
+                        state = None
                     if state is None:
                         state = states[key] = fresh_scope
                         for parameter in node.args.args:
@@ -514,6 +522,7 @@ def enable_eager_constructors(builder, *, classes=()):
                                 state.rewrite(
                                     parameter.annotation, introduce=True, collect_declarations=True
                                 )
+                    state._eager_site = site
                     scope = state
                 else:
                     scope = AnnotationScope(
