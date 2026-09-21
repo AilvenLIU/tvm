@@ -458,19 +458,34 @@ TVM_FFI_STATIC_INIT_BLOCK() {
 //-------------------------------------
 
 // Global registry for Python functions
-static std::unordered_map<std::string, ffi::Function> py_func_registry;
+struct PyFuncRegistry {
+  std::unordered_map<std::string, ffi::Function> functions;
+
+  void Clear() {
+    // Releasing a callback can run an owner's destructor, which clears the
+    // registry again. Detach the entries before releasing any Python objects.
+    decltype(functions) removed;
+    removed.swap(functions);
+  }
+
+  ~PyFuncRegistry() { Clear(); }
+};
+
+static PyFuncRegistry py_func_registry;
 
 /*!
  * \brief Clear the Python function registry on shutdown
  */
-void ClearPyFuncRegistry() { py_func_registry.clear(); }
+void ClearPyFuncRegistry() { py_func_registry.Clear(); }
 
 /*!
  * \brief Register a Python function for call_py_func
  * \param name The function name
  * \param func The Python function wrapped as ffi::Function
  */
-void RegisterPyFunc(const std::string& name, ffi::Function func) { py_func_registry[name] = func; }
+void RegisterPyFunc(const std::string& name, ffi::Function func) {
+  py_func_registry.functions[name] = func;
+}
 
 /*!
  * \brief Get a registered Python function
@@ -478,8 +493,8 @@ void RegisterPyFunc(const std::string& name, ffi::Function func) { py_func_regis
  * \return The Python function
  */
 ffi::Function GetPyFunc(const std::string& name) {
-  auto it = py_func_registry.find(name);
-  if (it == py_func_registry.end()) {
+  auto it = py_func_registry.functions.find(name);
+  if (it == py_func_registry.functions.end()) {
     TVM_FFI_THROW(InternalError) << "Python function '" << name << "' not found in registry";
   }
   return it->second;
