@@ -47,8 +47,8 @@ def Tensor(shape=None, dtype=None, vdevice=None, ndim=-1, *, span=None):
     if isinstance(shape, _python.str) and dtype is None:
         dtype, shape = shape, None
     if isinstance(vdevice, _python.str):
-        target, _, index = vdevice.partition(":")
-        vdevice = _I.lookup_vdevice(target, int(index) if index else 0)
+        target, *qualifiers = vdevice.split(":", 2)
+        vdevice = _I.lookup_vdevice(target, int(qualifiers[0]) if qualifiers else 0)
     return _relax.TensorType(shape, dtype, vdevice, ndim, span)
 
 

@@ -467,15 +467,11 @@ del _constructor
 
 def range_(*args):
     """Construct a serial loop from the source builtin range arguments."""
-    if len(args) == 1:
-        start, stop, step = 0, args[0], 1
-    elif len(args) == 2:
-        start, stop = args
-        step = 1
-    elif len(args) == 3:
-        start, stop, step = args
-    else:
+    if len(args) in (1, 2):
+        return _T.serial(*args)
+    if len(args) != 3:
         raise TypeError("range expects one to three arguments")
+    start, stop, step = args
     if isinstance(step, _python.int) and step == 0:
         raise ValueError("range step cannot be zero")
     return _T.serial(start, stop, step=step)
