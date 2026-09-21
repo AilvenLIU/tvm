@@ -615,52 +615,5 @@ def test_multi_line_error_report():
     assert " 4 " in err_str and " 5 " in err_str and " 6 " in err_str, err_str
 
 
-def test_format_source_snippet_multi_line():
-    """Unit-level check that _format_source_snippet renders every line in a
-    multi-line span, with the underline covering start-col..EOL on the first
-    line, full interior lines, and col-1..end-col on the last line."""
-    from tvm.script.parser.core.diagnostics import _format_source_snippet
-
-    source_lines = [
-        "first ignored line\n",
-        "    foo(bar,\n",
-        "        baz,\n",
-        "        qux)\n",
-        "last ignored line\n",
-    ]
-    # Span lines 2..4 (1-based), starting at col 5 ('foo'), ending at col 13
-    # (exclusive) on line 4.
-    snippet = _format_source_snippet(
-        source_lines, lineno=2, col_offset=5, end_lineno=4, end_col_offset=13
-    )
-    lines = snippet.splitlines()
-    # All three spanned source lines must be present.
-    assert any("foo(bar," in line for line in lines), snippet
-    assert any("baz," in line for line in lines), snippet
-    assert any("qux)" in line for line in lines), snippet
-    # Underline carets present on the first line under 'foo(bar,'.
-    assert "^" in snippet, snippet
-    # The line numbers 2, 3, 4 appear in the gutter.
-    assert " 2 |" in snippet and " 3 |" in snippet and " 4 |" in snippet, snippet
-
-
-def test_format_source_snippet_single_line_unchanged():
-    """A single-line span (end_lineno == lineno) underlines only the
-    [col_offset, end_col_offset) columns on that one line."""
-    from tvm.script.parser.core.diagnostics import _format_source_snippet
-
-    source_lines = ["ignored\n", "    abc + def\n", "ignored\n"]
-    # Underline just 'abc' (cols 5..8 exclusive) on line 2.
-    snippet = _format_source_snippet(
-        source_lines, lineno=2, col_offset=5, end_lineno=2, end_col_offset=8
-    )
-    lines = snippet.splitlines()
-    # Exactly one source-text line and one marker line (plus the leading gutter).
-    text_lines = [line for line in lines if "abc + def" in line]
-    assert len(text_lines) == 1, snippet
-    marker_line = next(line for line in lines if "^" in line)
-    assert marker_line.count("^") == 3, snippet
-
-
 if __name__ == "__main__":
     tvm.testing.main()

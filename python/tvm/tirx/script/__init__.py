@@ -14,24 +14,38 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""TIRX-layer TVMScript pieces (parser, builder).
+"""TVMScript entry point using concrete TIRx construction operations."""
 
-After the per-dialect TVMScript restructure, the TIRX layer owns its own
-``script/{parser,builder}`` subpackages. ``tvm.script.tirx`` resolves to
-this module via the dialect registry, so the public parser surface
-(``prim_func``, ``Buffer``, ``Ptr``, etc.) is re-exported here.
-"""
+# pylint: disable=wildcard-import,unused-wildcard-import,redefined-builtin
+import sys as _sys
 
-# pylint: disable=redefined-builtin,wildcard-import,unused-wildcard-import
-from .v2 import *
-from .v2 import Buffer, Ptr, prim_func
+from tvm.script.parser.frontend import make_decorator as _make_decorator
+from tvm.script.parser.frontend import make_helper as _make_helper
+from tvm.script.parser.frontend import register_namespace as _register_namespace
+from tvm.tirx.layout import Axis as _Axis
 
-try:
-    from .v2 import macro
-except ImportError:
-    macro = None
+from . import builder as _builder
+from . import tile as _tile
+from .builder import *
+from .tile import cluster as cluster
+from .tile import cta as cta
+from .tile import thread as thread
+from .tile import warp as warp
+from .tile import warpgroup as warpgroup
+from .tile import wg as wg
+
+tile = _tile
+prim_func = _make_decorator(
+    _builder, option_map={"private": "private", "s_tir": "s_tir", "persistent": "persistent"}
+)
+inline = _make_helper(_builder, preserve_return=True, late_binding=True)
+macro = _make_helper(_builder, preserve_return=False)
+
+_register_namespace("T", _sys.modules[__name__])
+_register_namespace("tirx", _sys.modules[__name__])
+
+_register_namespace("Axis", _Axis)
+
 from tvm.tirx.lang.alloc_pool import SMEMPool, TMEMPool
 
-from . import tile
 from .builder.ir import TensorMap, meta_class
-from .tile import cluster, cta, thread, warp, warpgroup, wg

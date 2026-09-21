@@ -30,10 +30,10 @@ from types import ModuleType, SimpleNamespace
 import pytest
 
 from tvm import ir
-from tvm.script import parser_v2
+from tvm.script import parser
 from tvm.script.ir_builder import IRBuilder, protocol
-from tvm.script.parser_v2.frontend import Compiler, make_decorator
-from tvm.script.parser_v2.transform import Transformer
+from tvm.script.parser.frontend import Compiler, make_decorator
+from tvm.script.parser.transform import Transformer
 
 
 class _Recorder:
@@ -275,7 +275,7 @@ def test_original_nested_locations_and_spans():
 def test_shared_parser_dependency_direction():
     forbidden = {"tir", "tirx", "s_tir", "relax"}
     violations = []
-    for path in sorted(Path(parser_v2.__file__).parent.rglob("*.py")):
+    for path in sorted(Path(parser.__file__).parent.rglob("*.py")):
         tree = ast.parse(path.read_text(encoding="utf-8"))
         for node in ast.walk(tree):
             values = []

@@ -14,14 +14,45 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Relax-layer TVMScript pieces (parser, builder).
+"""TVMScript entry point using concrete Relax construction operations."""
 
-After the per-dialect TVMScript restructure, the Relax layer owns its own
-``script/{parser,builder}`` subpackages. ``tvm.script.relax`` resolves to
-this module via the dialect registry, so the public parser surface
-(``function``, ``Tensor``, ``match_cast``, etc.) is re-exported here.
-"""
+# pylint: disable=wildcard-import,unused-wildcard-import,redefined-builtin
+import sys as _sys
 
-# pylint: disable=redefined-builtin,wildcard-import,unused-wildcard-import
-from .v2 import *
-from .v2 import dist
+from tvm import relax as _relax
+from tvm.relax.base_py_module import PyModuleFactory as _PyModuleFactory
+from tvm.script.parser.frontend import make_decorator as _make_decorator
+from tvm.script.parser.frontend import make_helper as _make_helper
+from tvm.script.parser.frontend import register_namespace as _register_namespace
+from tvm.script.parser.functions import register_opaque_factory as _register_opaque_factory
+
+from . import builder as _builder
+from .builder import *
+
+function = _make_decorator(_builder, option_map={"pure": "is_pure", "private": "is_private"})
+macro = _make_helper(_builder, preserve_return=True)
+
+_register_namespace("R", _sys.modules[__name__])
+_register_namespace("relax", _sys.modules[__name__])
+
+
+def _opaque_function(name, function, source, span):
+    return _relax.ExternFunc(name, span=span).with_attrs(
+        {
+            "is_pyfunc": True,
+            "function_type": "python",
+            "python_function_name": name,
+            "python_source": source,
+            "python_packed_func": function,
+        }
+    )
+
+
+def _python_module(module, original, bases):
+    candidates = (original, *bases)
+    if any(isinstance(base, type) and issubclass(base, _relax.BasePyModule) for base in candidates):
+        return _PyModuleFactory(module, original_class=original)
+    return module
+
+
+_register_opaque_factory(_opaque_function, module_adapter=_python_module)

@@ -14,24 +14,31 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Default TVMScript parser entries.
+"""Translate original Python ASTs into calls on a registered construction namespace.
 
-The generic implementation is retained under ``parser_v2`` until the migration
-cleanup. Dialect namespaces resolve through the shared script registry.
+Shared I infrastructure owns builder lifetime, spans and module identities; each
+context selects X from reverse-registered function metadata. Calls return concrete
+values, constructor metadata describes syntax, and compiled AST locations remain
+those of the original source. Entry modules register policies; this parser never
+imports their namespaces.
 """
 
-import importlib
-from typing import Any
+from . import ir
+from .frontend import (
+    _NAMESPACES,
+    from_source,
+    ir_module,
+    make_decorator,
+    make_helper,
+    parse,
+    pyfunc,
+    register_namespace,
+)
 
-from ..parser_v2 import ir, ir_module, parse
 
-
-def __getattr__(name: str) -> Any:
-    # Lazy import to avoid loading tvm.script during dialect bootstrap.
-    from tvm.script import _DIALECT_REGISTRY  # pylint: disable=import-outside-toplevel
-
-    if name in _DIALECT_REGISTRY:
-        module = importlib.import_module(_DIALECT_REGISTRY[name])
-        globals()[name] = module
-        return module
-    raise AttributeError(f"module 'tvm.script.parser' has no attribute {name!r}")
+def __getattr__(name):
+    # Entry modules register source aliases; parsing never imports their owners.
+    try:
+        return _NAMESPACES[name]
+    except KeyError:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}") from None
