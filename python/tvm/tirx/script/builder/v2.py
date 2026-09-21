@@ -1689,6 +1689,29 @@ def if_then_else_(condition, true_value, false_value):
     return select(condition, true_value, false_value)
 
 
+def _safe_boolean_operand(value):
+    """Recognize total scalar comparisons that need no runtime guard.
+
+    Native And/Or may eagerly evaluate both children. Restrict their use to
+    variables, literals and recursively safe comparisons/boolean expressions;
+    calls, loads, division and unknown operations retain conditional IR.
+    This is a builder representation choice, not parser-side IR inspection.
+    """
+    if isinstance(value, _ffi.ObjectConvertible):
+        value = value.asobject()
+    if isinstance(value, _python.bool | _python.int | _python.float):
+        return True
+    if isinstance(value, _ir.Var | _tir.IntImm | _tir.FloatImm):
+        return _ir.is_prim_expr(value) and value.ty.is_scalar()
+    if isinstance(
+        value, _tir.EQ | _tir.NE | _tir.LT | _tir.LE | _tir.GT | _tir.GE | _tir.And | _tir.Or
+    ):
+        return _safe_boolean_operand(value.a) and _safe_boolean_operand(value.b)
+    if isinstance(value, _tir.Not):
+        return _safe_boolean_operand(value.a)
+    return False
+
+
 def and_(*values, chain=None):
     """Construct left-to-right scalar conjunction with runtime short circuit.
 
@@ -1714,9 +1737,12 @@ def and_(*values, chain=None):
 
     Notes
     -----
-    Runtime evaluation stops at the first false operand. For comparison chains,
-    native bindings evaluate each shared operand once when its comparison is
-    reached. All operands are eagerly constructed; no callbacks or frames persist.
+    Runtime evaluation stops at the first false operand when later operands
+    require guards. For comparison chains, native bindings evaluate each shared
+    operand once when its comparison is
+    reached. Comparisons over variables/literals use canonical native And nodes
+    when eager runtime evaluation is safe; other expressions retain guards.
+    All operands are eagerly constructed; no callbacks or frames persist.
 
     Examples
     --------
@@ -1729,6 +1755,8 @@ def and_(*values, chain=None):
         from .comparison import _comparison_chain
 
         return _comparison_chain(values, chain, and_, _tir.Let)
+    if _python.all(_safe_boolean_operand(value) for value in values):
+        return logical_and(*values)
     result = values[-1]
     for value in reversed(values[:-1]):
         result = if_then_else_(
@@ -1757,8 +1785,10 @@ def or_(*values):
 
     Notes
     -----
-    Runtime evaluation stops at the first true operand. Python has already
-    constructed every argument. No native frame or state persists after the call.
+    Runtime evaluation stops at the first true operand when later operands
+    require guards. Comparisons over variables/literals use canonical native Or
+    nodes when eager evaluation is safe. Python has already constructed every
+    argument. No native frame or state persists after the call.
 
     Examples
     --------
@@ -1767,6 +1797,8 @@ def or_(*values):
     """
     if not values:
         raise TypeError("or_ requires at least one operand")
+    if _python.all(_safe_boolean_operand(value) for value in values):
+        return logical_or(*values)
     result = values[-1]
     for value in reversed(values[:-1]):
         result = if_then_else_(
