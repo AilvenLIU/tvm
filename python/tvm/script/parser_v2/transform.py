@@ -214,6 +214,13 @@ class Transformer(ast.NodeTransformer):
                         child.format_spec = self._format_spec(child.format_spec)
         else:
             self._expression_children(node, declarations)
+        if isinstance(node, ast.Call):
+            node.func = self._call(
+                self.infrastructure_name,
+                "callee",
+                [self._name(self.builder_name, original), node.func],
+                original,
+            )
         if isinstance(node, ast.Starred) or (
             isinstance(node, ast.Name) and isinstance(node.ctx, ast.Store)
         ):

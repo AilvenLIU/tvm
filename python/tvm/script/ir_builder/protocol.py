@@ -179,3 +179,17 @@ def select_lazy(operation, condition, true_value, false_value):
         return true_value() if condition else false_value()
     return operation(condition, true_value(), false_value())
 
+
+def register_call_kind(builder, value_type, adapter):
+    """Register a concrete callable's construction policy on its builder namespace."""
+    policies = dict(getattr(builder, "__tvm_call_kinds__", {}))
+    policies[value_type] = adapter
+    builder.__tvm_call_kinds__ = policies
+
+
+def callee(builder, value):
+    """Resolve an already-evaluated callable without altering global call behavior."""
+    for value_type, adapter in getattr(builder, "__tvm_call_kinds__", {}).items():
+        if isinstance(value, value_type):
+            return adapter(value)
+    return value
