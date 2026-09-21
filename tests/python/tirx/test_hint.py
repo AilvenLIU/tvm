@@ -16,6 +16,8 @@
 # under the License.
 """Tests for T.hint() — universal directive primitive for TIRx sketch language."""
 
+from __future__ import annotations
+
 import tvm_ffi
 
 import tvm

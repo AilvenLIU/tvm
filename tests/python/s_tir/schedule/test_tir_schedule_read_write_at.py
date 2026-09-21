@@ -32,6 +32,8 @@
 # specific language governing permissions and limitations
 # under the License.
 # pylint: disable=missing-function-docstring,missing-module-docstring
+from __future__ import annotations
+
 import sys
 
 import pytest

@@ -16,6 +16,8 @@
 # under the License.
 """Test eliminate common subexpr pass"""
 
+from __future__ import annotations
+
 import numpy as np
 import pytest
 

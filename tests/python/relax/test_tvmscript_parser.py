@@ -15,6 +15,8 @@
 # specific language governing permissions and limitations
 # under the License.
 # ruff: noqa: F401, F821, F841
+from __future__ import annotations
+
 import sys
 from typing import Optional, Union
 

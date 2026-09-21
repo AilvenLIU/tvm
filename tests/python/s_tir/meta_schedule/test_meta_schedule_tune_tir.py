@@ -15,6 +15,8 @@
 # specific language governing permissions and limitations
 # under the License.
 # pylint: disable=missing-docstring,no-member,invalid-name,unused-variable
+from __future__ import annotations
+
 import logging
 import tempfile
 
@@ -164,7 +166,7 @@ def test_tune_block_cpu():
             sch.compute_inline(block)
             return [sch]
 
-        def clone(self) -> "RemoveBlock":
+        def clone(self) -> RemoveBlock:
             return RemoveBlock()
 
     with tempfile.TemporaryDirectory() as work_dir:

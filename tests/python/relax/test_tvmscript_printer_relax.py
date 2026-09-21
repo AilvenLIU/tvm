@@ -17,6 +17,8 @@
 # pylint: disable=missing-docstring
 # ruff: noqa: E501, F841
 
+from __future__ import annotations
+
 from tvm_ffi.access_path import AccessPath
 
 import tvm

@@ -28,6 +28,8 @@ thread reads its row into ``B``. Round-trip mismatch ⇒ at least one direction
 is wrong.
 """
 
+from __future__ import annotations
+
 import numpy as np
 import pytest
 import tvm_ffi

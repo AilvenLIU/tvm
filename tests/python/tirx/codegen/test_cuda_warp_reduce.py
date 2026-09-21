@@ -16,6 +16,8 @@
 # under the License.
 """Tests for T.cuda.warp_reduce / warp_sum / warp_max / warp_min intrinsics."""
 
+from __future__ import annotations
+
 import numpy as np
 import pytest
 

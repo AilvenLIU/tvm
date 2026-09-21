@@ -23,11 +23,11 @@ this module via the dialect registry, so the public parser surface
 """
 
 # pylint: disable=redefined-builtin,wildcard-import,unused-wildcard-import
-from .parser import *
-from .parser import Buffer, Ptr, prim_func
+from .v2 import *
+from .v2 import Buffer, Ptr, prim_func
 
 try:
-    from .parser import macro
+    from .v2 import macro
 except ImportError:
     macro = None
 from tvm.tirx.lang.alloc_pool import SMEMPool, TMEMPool

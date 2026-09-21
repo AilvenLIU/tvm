@@ -17,8 +17,9 @@
 # ruff: noqa: E501
 """Test Meta Schedule SearchStrategy"""
 
-# pylint: disable=missing-function-docstring
+from __future__ import annotations
 
+# pylint: disable=missing-function-docstring
 import pytest
 
 import tvm
@@ -282,7 +283,7 @@ def test_meta_schedule_evolutionary_search_fail_init_population():  # pylint: di
         def apply(self, sch: Schedule) -> bool:
             return False
 
-        def clone(self) -> "AlwaysFailPostproc":
+        def clone(self) -> AlwaysFailPostproc:
             return AlwaysFailPostproc()
 
         def __str__(self) -> str:

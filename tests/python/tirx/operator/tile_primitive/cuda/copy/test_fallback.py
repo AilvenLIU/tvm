@@ -25,6 +25,8 @@ fallback, the emit should pick one active thread, and the round-trip
 ``A_gmem → A_smem → B_gmem`` should match.
 """
 
+from __future__ import annotations
+
 import numpy as np
 import pytest
 

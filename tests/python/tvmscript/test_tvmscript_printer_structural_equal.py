@@ -16,6 +16,8 @@
 # under the License.
 # ruff: noqa: F841
 
+from __future__ import annotations
+
 import pytest
 from tvm_ffi.access_path import AccessPath
 

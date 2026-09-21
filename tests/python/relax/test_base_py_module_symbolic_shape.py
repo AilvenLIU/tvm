@@ -16,6 +16,8 @@
 # under the License.
 # ruff: noqa: E741
 
+from __future__ import annotations
+
 import numpy as np
 import pytest
 

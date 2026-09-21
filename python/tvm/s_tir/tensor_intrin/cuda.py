@@ -18,6 +18,8 @@
 # ruff: noqa: E731
 """Intrinsics for tensorization on NVIDIA GPU."""
 
+from __future__ import annotations
+
 from typing import Literal
 
 from tvm_ffi import register_global_func

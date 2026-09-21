@@ -16,6 +16,8 @@
 # under the License.
 # ruff: noqa: F841
 
+from __future__ import annotations
+
 import tvm.script
 import tvm.testing
 from tvm import relax

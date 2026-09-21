@@ -16,6 +16,8 @@
 # under the License.
 # pylint: disable=missing-docstring, invalid-name
 # ruff: noqa: E501, F841
+from __future__ import annotations
+
 import numpy as np
 import pytest
 

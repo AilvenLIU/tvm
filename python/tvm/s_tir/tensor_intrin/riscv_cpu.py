@@ -18,6 +18,8 @@
 # ruff: noqa: E501
 """Intrinsics for RISCV tensorization"""
 
+from __future__ import annotations
+
 import logging
 
 import tvm_ffi

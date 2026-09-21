@@ -19,6 +19,8 @@
 Test relax transform - Eliminate redundant reshape operations
 """
 
+from __future__ import annotations
+
 import tvm.testing
 from tvm import relax
 from tvm.relax.transform import DeadCodeElimination, RemoveRedundantReshape

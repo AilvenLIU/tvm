@@ -16,6 +16,8 @@
 # under the License.
 # ruff: noqa: E501, F401
 
+from __future__ import annotations
+
 import sys
 
 import pytest

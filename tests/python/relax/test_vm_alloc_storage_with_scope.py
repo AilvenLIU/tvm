@@ -16,6 +16,8 @@
 # under the License.
 """Test Naive allocator with memory scope for Relax VM"""
 
+from __future__ import annotations
+
 import numpy as np
 
 import tvm

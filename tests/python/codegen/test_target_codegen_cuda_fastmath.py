@@ -16,6 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from __future__ import annotations
+
 import re
 from collections.abc import Callable
 from dataclasses import dataclass

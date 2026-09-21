@@ -17,6 +17,8 @@
 # pylint: disable=missing-docstring
 # ruff: noqa: E501, F841
 
+from __future__ import annotations
+
 import tempfile
 
 import pytest

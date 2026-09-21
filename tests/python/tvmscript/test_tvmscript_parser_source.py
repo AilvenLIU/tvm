@@ -17,6 +17,8 @@
 # ruff: noqa: F401
 """Unittests for tvm.script.parser.core"""
 
+from __future__ import annotations
+
 import inspect
 
 import pytest
@@ -110,6 +112,12 @@ def _span_range(span):
     )
 
 
+def _expected_v2_range(legacy_span):
+    # Source is the preserved legacy diagnostic oracle; v2 stores zero-based columns.
+    name, line, column, end_line, end_column = _span_range(legacy_span)
+    return name, line, column - 1, end_line, end_column - 1
+
+
 def _find_ir_node(func, predicate):
     nodes = []
     structural_walk(func.body, nodes.append, order="post")
@@ -153,7 +161,7 @@ def test_parser_attaches_span_to_direct_call():
         ),
     )
 
-    assert _span_range(call.span) == _span_range(source.to_span(call_ast))
+    assert _span_range(call.span) == _expected_v2_range(source.to_span(call_ast))
 
 
 def test_parser_attaches_span_to_nested_tensor_load():
@@ -173,7 +181,7 @@ def test_parser_attaches_span_to_nested_tensor_load():
         ),
     )
 
-    assert _span_range(load.span) == _span_range(source.to_span(load_ast))
+    assert _span_range(load.span) == _expected_v2_range(source.to_span(load_ast))
 
 
 def test_parser_retains_inline_call_site_and_definition_spans():
@@ -202,8 +210,8 @@ def test_parser_retains_inline_call_site_and_definition_spans():
 
     assert isinstance(call.span, SequentialSpan)
     assert [_span_range(span) for span in call.span.spans] == [
-        _span_range(caller_source.to_span(caller_call_ast)),
-        _span_range(wait_source.to_span(wait_call_ast)),
+        _expected_v2_range(caller_source.to_span(caller_call_ast)),
+        _expected_v2_range(wait_source.to_span(wait_call_ast)),
     ]
 
 
@@ -218,7 +226,7 @@ def test_parser_attaches_span_to_tile_primitive_call():
     func = T.prim_func(tile_call)
     call = _find_ir_node(func, lambda node: isinstance(node, TilePrimitiveCall))
 
-    assert _span_range(call.span) == _span_range(source.to_span(call_ast))
+    assert _span_range(call.span) == _expected_v2_range(source.to_span(call_ast))
 
 
 def test_parser_spans_do_not_affect_structural_identity():
@@ -228,8 +236,8 @@ def test_parser_spans_do_not_affect_structural_identity():
     func_a = tvm.script.from_source(source_a)
     func_b = tvm.script.from_source(source_b)
 
-    assert _span_range(func_a.body.span) == ("<str>", 3, 5, 3, 18)
-    assert _span_range(func_b.body.span) == ("<str>", 5, 5, 5, 18)
+    assert _span_range(func_a.body.span) == ("<str>", 3, 4, 3, 17)
+    assert _span_range(func_b.body.span) == ("<str>", 5, 4, 5, 17)
     assert tvm_ffi.structural_hash(func_a) == tvm_ffi.structural_hash(func_b)
     assert_structural_equal(func_a, func_b)
 

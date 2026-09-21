@@ -17,6 +17,8 @@
 # ruff: noqa: E501
 """Unit tests for registering tirx gradient functions in the gradient pass."""
 
+from __future__ import annotations
+
 import pytest
 
 import tvm

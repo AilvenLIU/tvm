@@ -16,6 +16,8 @@
 # under the License.
 # pylint: disable=missing-module-docstring,missing-function-docstring,missing-class-docstring
 # ruff: noqa: E501, E741, F841
+from __future__ import annotations
+
 import pytest
 
 import tvm

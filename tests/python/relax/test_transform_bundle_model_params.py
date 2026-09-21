@@ -16,6 +16,8 @@
 # under the License.
 # ruff: noqa: F401
 
+from __future__ import annotations
+
 import pytest
 
 pytest.importorskip("scipy")  # tvm.topi.testing imports scipy

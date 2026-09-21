@@ -17,6 +17,8 @@
 # pylint: disable=missing-docstring
 # ruff: noqa: E501
 
+from __future__ import annotations
+
 from unittest import mock
 
 import tvm.testing

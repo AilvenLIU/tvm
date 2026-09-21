@@ -17,6 +17,8 @@
 # ruff: noqa: E741
 """Instrument test cases."""
 
+from __future__ import annotations
+
 import tvm
 from tvm import relax
 from tvm.ir.instrument import PrintAfterAll, PrintBeforeAll

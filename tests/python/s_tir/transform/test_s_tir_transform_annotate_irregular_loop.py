@@ -18,6 +18,8 @@
 
 """Tests for AnnotateIrregularLoop"""
 
+from __future__ import annotations
+
 import tvm
 import tvm.testing
 from tvm import s_tir, tirx

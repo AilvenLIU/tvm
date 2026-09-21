@@ -16,6 +16,8 @@
 # under the License.
 
 
+from __future__ import annotations
+
 import tvm
 import tvm.script
 import tvm.testing

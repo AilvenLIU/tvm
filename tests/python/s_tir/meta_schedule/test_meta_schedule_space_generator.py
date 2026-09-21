@@ -15,8 +15,10 @@
 # specific language governing permissions and limitations
 # under the License.
 """Test Meta Schedule SpaceGenerator"""
-# pylint: disable=missing-function-docstring
 
+from __future__ import annotations
+
+# pylint: disable=missing-function-docstring
 import math
 
 import pytest

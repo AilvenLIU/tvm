@@ -21,6 +21,8 @@
 # ruff: noqa: RUF005
 """Tensorflow lite frontend."""
 
+from __future__ import annotations
+
 import functools
 import itertools
 import math

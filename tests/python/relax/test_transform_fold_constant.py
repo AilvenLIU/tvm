@@ -15,6 +15,8 @@
 # specific language governing permissions and limitations
 # under the License.
 # ruff: noqa: F841
+from __future__ import annotations
+
 import numpy as np
 
 import tvm

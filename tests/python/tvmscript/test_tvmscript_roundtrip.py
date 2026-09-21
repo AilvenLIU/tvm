@@ -16,6 +16,8 @@
 # under the License.
 # ruff: noqa: E501, F401, F841
 
+from __future__ import annotations
+
 import sys
 
 import numpy as np
@@ -3192,11 +3194,11 @@ def relax_match_cast_ty_proxy():
     # This list is a subset of `TypeProxy.__subclasses__()`,
     # excluding `PrimProxy` and `DTensorProxy`.
     subclasses = [
-        tvm.script.parser.relax.entry.AnyProxy,
-        tvm.script.parser.relax.entry.TensorProxy,
-        tvm.script.parser.relax.entry.CallableProxy,
-        tvm.script.parser.relax.entry.TupleProxy,
-        tvm.script.parser.relax.entry.ShapeProxy,
+        R.Any,
+        R.Tensor,
+        R.Callable,
+        R.Tuple,
+        R.Shape,
     ]
 
     for subclass in subclasses:

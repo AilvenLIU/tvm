@@ -16,6 +16,8 @@
 # under the License.
 # pylint: disable=missing-docstring,no-member,invalid-name,unused-variable
 # ruff: noqa: F401
+from __future__ import annotations
+
 import logging
 import tempfile
 

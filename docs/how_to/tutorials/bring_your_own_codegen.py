@@ -49,6 +49,8 @@ section also needs PyTorch.  Each section degrades gracefully when its backend i
 unavailable.
 """
 
+from __future__ import annotations
+
 ######################################################################
 # Overview of the BYOC flow
 # -------------------------
@@ -65,7 +67,6 @@ unavailable.
 # Steps 1 and 2 are pure Python and run anywhere; steps 3 and 4 need the
 # backend's codegen and runtime compiled into TVM, which is why the
 # build-and-run cells below are guarded.
-
 ######################################################################
 # Step 1: Import the backends to register their patterns
 # ------------------------------------------------------
@@ -74,7 +75,6 @@ unavailable.
 # Pattern registration is independent of the C++ build -- only codegen and the
 # runtime require the backend to be compiled in -- so we probe each backend and
 # guard the build-and-run cells accordingly.
-
 import os
 import tempfile
 

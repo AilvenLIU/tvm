@@ -18,6 +18,8 @@
 # pylint: disable=redefined-builtin
 """nn.Tensor operators."""
 
+from __future__ import annotations
+
 import inspect
 import math
 from collections.abc import Callable, Sequence

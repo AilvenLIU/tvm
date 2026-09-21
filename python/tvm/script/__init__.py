@@ -17,6 +17,10 @@
 """
 TVMScript public namespace.
 
+Construction APIs return concrete IR values. Use
+``from __future__ import annotations`` for Python-defined script functions so
+signature symbols are resolved by the parser before constructors run.
+
 Dialect resolution mechanism
 ----------------------------
 
@@ -215,23 +219,19 @@ def __getattr__(name: str) -> Any:
         globals()[name] = module
         return module
     if name == "ir":
-        # IR is foundational — its parser is a real submodule under
-        # tvm.script.parser.ir, exposed here as `tvm.script.ir` for the
-        # legacy `from tvm.script import ir as I` pattern.
-        ir_parser = importlib.import_module("tvm.script.parser.ir")
+        # IR is foundational and shares the generic parser entry point.
+        ir_parser = importlib.import_module("tvm.script.parser_v2.ir")
         globals()["ir"] = ir_parser
         return ir_parser
     if name in ("from_source", "parse"):
-        from .parser._core import parse  # pylint: disable=import-outside-toplevel
+        from .parser_v2 import parse  # pylint: disable=import-outside-toplevel
 
         globals()["from_source"] = parse
         globals()["parse"] = parse
         return parse
     if name == "ir_module":
-        # ir_module lives in the IR parser at tvm.script.parser.ir; the IR
-        # layer is foundational, so we resolve it directly rather than via
-        # the dialect registry.
-        ir_parser = importlib.import_module("tvm.script.parser.ir")
+        # The foundational module entry does not use the dialect registry.
+        ir_parser = importlib.import_module("tvm.script.parser_v2.ir")
         ir_module_value = ir_parser.ir_module
         globals()["ir_module"] = ir_module_value
         return ir_module_value

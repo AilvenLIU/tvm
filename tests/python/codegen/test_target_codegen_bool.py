@@ -16,6 +16,8 @@
 # under the License.
 """codegen related to bool types"""
 
+from __future__ import annotations
+
 import numpy as np
 import pytest
 

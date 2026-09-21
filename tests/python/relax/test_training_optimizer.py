@@ -16,6 +16,8 @@
 # under the License.
 """Unit tests for relax optimizer APIs."""
 
+from __future__ import annotations
+
 import pytest
 
 import tvm

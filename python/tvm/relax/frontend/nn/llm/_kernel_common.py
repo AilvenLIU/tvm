@@ -31,6 +31,7 @@ Contents:
 - ``_make_prefill_macros`` — the ``@T.macro`` bundle invoked by the prefill kernels
 - Tiling config (``_get_prefill_kernel_config``) and scheduling (``_schedule_prefill_kernel``)
 """
+from __future__ import annotations
 
 # pylint: disable=too-many-statements,too-many-arguments,invalid-name,line-too-long
 import enum

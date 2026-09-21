@@ -17,6 +17,8 @@
 # pylint: disable=invalid-name, too-many-nested-blocks
 """Backend kernels for cumsum operator."""
 
+from __future__ import annotations
+
 import math
 
 from tvm.script import tirx as T

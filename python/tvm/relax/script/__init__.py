@@ -23,5 +23,5 @@ this module via the dialect registry, so the public parser surface
 """
 
 # pylint: disable=redefined-builtin,wildcard-import,unused-wildcard-import
-from .parser import *
-from .parser import dist
+from .v2 import *
+from .v2 import dist

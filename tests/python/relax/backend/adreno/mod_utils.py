@@ -17,6 +17,8 @@
 # ruff: noqa: E501, F401, F841
 """CLML integration operator tests."""
 
+from __future__ import annotations
+
 import json
 
 import numpy as np

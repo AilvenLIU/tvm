@@ -15,6 +15,8 @@
 # specific language governing permissions and limitations
 # under the License.
 # pylint: disable=missing-function-docstring
+from __future__ import annotations
+
 import copy
 import functools
 import operator

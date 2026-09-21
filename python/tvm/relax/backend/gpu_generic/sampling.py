@@ -17,6 +17,8 @@
 # pylint: disable=invalid-name, too-many-nested-blocks
 """Backend kernels for sampling operator."""
 
+from __future__ import annotations
+
 import math
 from collections.abc import Callable
 

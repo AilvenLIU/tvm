@@ -32,6 +32,8 @@
 # under the License.
 # ruff: noqa: F401
 
+from __future__ import annotations
+
 import tempfile
 
 import tvm_ffi

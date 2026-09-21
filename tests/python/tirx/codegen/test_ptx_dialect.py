@@ -16,6 +16,8 @@
 # under the License.
 """Tests for the table-driven PTX dialect (``T.ptx``)."""
 
+from __future__ import annotations
+
 import itertools
 import os
 import re

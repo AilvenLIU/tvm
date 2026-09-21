@@ -17,6 +17,8 @@
 # pylint: disable=missing-docstring, invalid-name, unused-argument
 # ruff: noqa: F401, F841
 
+from __future__ import annotations
+
 import pytest
 
 import tvm

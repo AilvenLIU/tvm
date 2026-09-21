@@ -32,6 +32,8 @@ If not already acquainted, please refer to :ref:`tirx-learning` initially.
 
 """
 
+from __future__ import annotations
+
 ######################################################################
 # Create TensorIR using TVMScript
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -51,7 +53,6 @@ If not already acquainted, please refer to :ref:`tirx-learning` initially.
 # ***************
 # Let's take an example of ``mm_relu`` from :ref:`tirx-learning`. Here is the complete
 # format of the ir_module and in TVMScript:
-
 import numpy as np
 import tvm_ffi
 

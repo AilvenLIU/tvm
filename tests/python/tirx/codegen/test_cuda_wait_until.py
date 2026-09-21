@@ -28,6 +28,8 @@ contract asserted here: it polls relaxed, closes an acquiring wait with one
 caller's destination. The protocols exercised are the shapes real kernels use.
 """
 
+from __future__ import annotations
+
 import pytest
 
 import tvm

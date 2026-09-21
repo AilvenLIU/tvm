@@ -17,6 +17,8 @@
 # pylint: disable=invalid-name,missing-function-docstring
 """Intrinsics for x86 tensorization."""
 
+from __future__ import annotations
+
 from tvm.script import tirx as T
 
 from .. import TensorIntrin

@@ -17,6 +17,8 @@
 # ruff: noqa: F401, F841
 """Test cross compilation"""
 
+from __future__ import annotations
+
 import os
 import struct
 

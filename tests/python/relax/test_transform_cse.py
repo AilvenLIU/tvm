@@ -17,6 +17,8 @@
 # ruff: noqa: F841
 """Test eliminate common subexpr pass"""
 
+from __future__ import annotations
+
 import numpy as np
 
 import tvm

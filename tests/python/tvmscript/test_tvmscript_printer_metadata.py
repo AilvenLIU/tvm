@@ -16,6 +16,8 @@
 # under the License.
 # pylint: disable=missing-docstring
 # ruff: noqa: F841
+from __future__ import annotations
+
 import tvm.testing
 from tvm.script.parser import ir as I
 from tvm.script.parser import tirx as T

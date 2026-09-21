@@ -17,6 +17,8 @@
 # pylint: disable=missing-docstring
 """Tests for NCCL/RCCL"""
 
+from __future__ import annotations
+
 import tempfile
 
 import numpy as np

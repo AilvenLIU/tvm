@@ -27,6 +27,8 @@ Re-deriving a bit layout by hand is exactly the kind of thing that is silently
 wrong, so these run both encoders on the same inputs and compare.
 """
 
+from __future__ import annotations
+
 import numpy as np
 import pytest
 

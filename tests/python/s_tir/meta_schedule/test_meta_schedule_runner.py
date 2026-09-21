@@ -17,6 +17,8 @@
 # ruff: noqa: F401
 """Test Meta Schedule Runner"""
 
+from __future__ import annotations
+
 import itertools
 import sys
 import time

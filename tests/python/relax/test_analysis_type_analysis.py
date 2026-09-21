@@ -18,6 +18,8 @@
 
 """Tests Relax dependent type analysis functions."""
 
+from __future__ import annotations
+
 import pytest
 import tvm_ffi
 

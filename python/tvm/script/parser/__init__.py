@@ -14,30 +14,16 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""The parser subpackage of TVMScript.
+"""Default TVMScript parser entries.
 
-Per-dialect parser submodules (``tvm.script.parser.tirx``, etc.) are
-resolved lazily via :data:`tvm.script._DIALECT_REGISTRY`.  When a dialect
-is accessed (e.g. ``tvm.script.parser.tirx``), this subpackage's
-``__getattr__`` looks up the dialect in ``_DIALECT_REGISTRY`` and imports
-``<dialect_module_path>.parser`` (e.g. ``tvm.tirx.script.parser``),
-caching the result so subsequent accesses skip ``__getattr__``.
-
-The IR layer is foundational and is NOT registered as a dialect — its
-parser lives as a real submodule ``tvm.script.parser.ir``, with
-``ir_module`` re-exported at this level for convenience.
-
-See :mod:`tvm.script` for a full description of the dialect resolution
-mechanism, including the ``_DialectRedirectFinder`` that handles
-deep statement-form imports.
+The generic implementation is retained under ``parser_v2`` until the migration
+cleanup. Dialect namespaces resolve through the shared script registry.
 """
 
 import importlib
 from typing import Any
 
-from . import _core, ir, tirx
-from ._core import parse
-from .ir import ir_module
+from ..parser_v2 import ir, ir_module, parse
 
 
 def __getattr__(name: str) -> Any:
@@ -45,7 +31,7 @@ def __getattr__(name: str) -> Any:
     from tvm.script import _DIALECT_REGISTRY  # pylint: disable=import-outside-toplevel
 
     if name in _DIALECT_REGISTRY:
-        module = importlib.import_module(f"{_DIALECT_REGISTRY[name]}.parser")
+        module = importlib.import_module(_DIALECT_REGISTRY[name])
         globals()[name] = module
         return module
     raise AttributeError(f"module 'tvm.script.parser' has no attribute {name!r}")

@@ -17,6 +17,8 @@
 # pylint: disable=missing-module-docstring,missing-function-docstring,missing-class-docstring
 # ruff: noqa: F401
 
+from __future__ import annotations
+
 import math
 import sys
 
@@ -158,7 +160,7 @@ def _check_correct(schedule: Schedule):
 
 @derived_object
 class WowSoFancyScheduleRule(PyScheduleRule):
-    def _initialize_with_tune_context(self, context: "TuneContext") -> None:
+    def _initialize_with_tune_context(self, context: TuneContext) -> None:
         pass
 
     def apply(self, sch: Schedule, block: SBlockRV) -> list[Schedule]:
@@ -175,7 +177,7 @@ class WowSoFancyScheduleRule(PyScheduleRule):
 
 @derived_object
 class DoubleScheduleRule(PyScheduleRule):
-    def _initialize_with_tune_context(self, context: "TuneContext") -> None:
+    def _initialize_with_tune_context(self, context: TuneContext) -> None:
         pass
 
     def apply(self, sch: Schedule, block: SBlockRV) -> list[Schedule]:
@@ -200,7 +202,7 @@ class DoubleScheduleRule(PyScheduleRule):
 
 @derived_object
 class TrinityDoubleRule(PyScheduleRule):
-    def _initialize_with_tune_context(self, context: "TuneContext") -> None:
+    def _initialize_with_tune_context(self, context: TuneContext) -> None:
         pass
 
     def apply(self, sch: Schedule, block: SBlockRV) -> list[Schedule]:
@@ -223,7 +225,7 @@ class TrinityDoubleRule(PyScheduleRule):
 
 @derived_object
 class ReorderScheduleRule(PyScheduleRule):
-    def _initialize_with_tune_context(self, context: "TuneContext") -> None:
+    def _initialize_with_tune_context(self, context: TuneContext) -> None:
         pass
 
     def apply(self, sch: Schedule, block: SBlockRV) -> list[Schedule]:
@@ -322,7 +324,7 @@ def test_meta_schedule_post_order_apply_duplicate_matmul():
 def test_meta_schedule_post_order_apply_remove_block():
     @derived_object
     class RemoveBlock(PyScheduleRule):
-        def _initialize_with_tune_context(self, context: "TuneContext") -> None:
+        def _initialize_with_tune_context(self, context: TuneContext) -> None:
             pass
 
         def apply(self, sch: Schedule, block: SBlockRV) -> list[Schedule]:

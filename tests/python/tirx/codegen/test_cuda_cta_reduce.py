@@ -16,6 +16,8 @@
 # under the License.
 """Tests for T.cuda.cta_reduce / cta_sum / cta_max / cta_min intrinsics."""
 
+from __future__ import annotations
+
 import numpy as np
 import pytest
 

@@ -17,6 +17,8 @@
 """Tests for FMA op dispatch, layout=None local dispatch, scalar broadcast,
 and rounding mode support."""
 
+from __future__ import annotations
+
 import re
 
 import numpy as np

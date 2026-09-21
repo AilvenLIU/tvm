@@ -29,6 +29,7 @@ This module contains:
 - Compact helpers that reorganise pages after removals
   (``_compact_kv_copy``, ``_compact_kv_copy_cpu``).
 """
+from __future__ import annotations
 
 # pylint: disable=too-many-statements,too-many-arguments,invalid-name,line-too-long
 from tvm.script import tirx as T

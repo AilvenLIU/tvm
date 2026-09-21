@@ -17,6 +17,8 @@
 # pylint: disable=invalid-name
 """Legalization functions for DLTensor inspection."""
 
+from __future__ import annotations
+
 import enum
 
 from tvm.ir import Call

@@ -17,6 +17,8 @@
 # ruff: noqa: F811, F841
 
 
+from __future__ import annotations
+
 import pytest
 
 import tvm

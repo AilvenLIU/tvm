@@ -17,6 +17,8 @@
 # pylint: disable=invalid-name, missing-function-docstring
 """Tests for the non-bulk CTA-level copy_async dispatch (vectorized load)."""
 
+from __future__ import annotations
+
 import numpy as np
 import pytest
 

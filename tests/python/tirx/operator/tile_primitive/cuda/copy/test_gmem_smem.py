@@ -21,6 +21,8 @@ Pipeline: A_gmem --G2S--> A_smem --S2G--> B_gmem. If either direction is
 wrong the round trip leaves B mismatched against A.
 """
 
+from __future__ import annotations
+
 import numpy as np
 import pytest
 import tvm_ffi

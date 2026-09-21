@@ -16,6 +16,8 @@
 # under the License.
 
 
+from __future__ import annotations
+
 import tvm.testing
 from tvm.ir import Range
 from tvm.script import tirx as T

@@ -16,6 +16,8 @@
 # under the License.
 # ruff: noqa: F821
 
+from __future__ import annotations
+
 import pytest
 
 import tvm

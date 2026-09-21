@@ -38,6 +38,8 @@ then read TMEM back via ``.32x32b.ld`` into a (128, FULL_W) buffer and check
 that the M=64 fragment's row positions hold the expected register data.
 """
 
+from __future__ import annotations
+
 import numpy as np
 import pytest
 

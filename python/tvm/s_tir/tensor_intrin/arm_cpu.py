@@ -18,6 +18,8 @@
 # ruff: noqa: E501, F401
 """Intrinsics for ARM tensorization."""
 
+from __future__ import annotations
+
 from tvm import tirx
 from tvm.script import tirx as T
 from tvm.script.ir_builder import IRBuilder

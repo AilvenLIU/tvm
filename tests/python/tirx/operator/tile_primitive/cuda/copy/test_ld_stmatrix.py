@@ -32,6 +32,8 @@ Uniform shape ``(*scope_outer, 8, 4, num, 2)`` is used for every num (including
 num=1, which gets an extent-1 placeholder for the num atom).
 """
 
+from __future__ import annotations
+
 import numpy as np
 import pytest
 
