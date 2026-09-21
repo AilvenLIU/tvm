@@ -27,18 +27,24 @@ from types import CodeType
 from tvm.script.ir_builder import ir as I
 
 _OPAQUE_FACTORY = None
+_MODULE_ADAPTER = None
 
 
-def register_opaque_factory(factory):
+def register_opaque_factory(factory, *, module_adapter=None):
     """Register the owner-provided constructor for a module's opaque function slot.
 
     The factory receives ``(name, python_callable, source_text, span)`` and must
-    return a concrete BaseFunc. Registration never executes the Python body.
+    return a concrete BaseFunc. The optional adapter receives a completed module,
+    its original class (if available), and its resolved base classes. Registration
+    never executes the Python body.
     """
-    global _OPAQUE_FACTORY
+    global _OPAQUE_FACTORY, _MODULE_ADAPTER
     if not callable(factory):
         raise TypeError("An opaque function factory must be callable")
+    if module_adapter is not None and not callable(module_adapter):
+        raise TypeError("An opaque module adapter must be callable")
     _OPAQUE_FACTORY = factory
+    _MODULE_ADAPTER = module_adapter
 
 
 def is_python_function(compiler, node, env):
@@ -124,6 +130,13 @@ def attach_python(module, functions):
         existing[function.name] = function.function
     module.pyfuncs = existing
     return module
+
+
+def adapt_python_module(module, *, original=None, bases=()):
+    """Let the registered owner supply an executable module wrapper if needed."""
+    if _MODULE_ADAPTER is None:
+        return module
+    return _MODULE_ADAPTER(module, original, bases)
 
 
 def _global_loads(node, filename):
