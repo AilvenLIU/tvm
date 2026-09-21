@@ -207,7 +207,7 @@ def _check_unterminated():
         last = statements[-1]
         if isinstance(last, _tir.Return | _tir.Break | _tir.Continue) or (
             isinstance(last, _tir.Evaluate)
-            and isinstance(last.value, _tir.Call)
+            and isinstance(last.value, _ir.Call)
             and isinstance(last.value.op, _ir.Op)
             and last.value.op.name in ("tirx.break_loop", "tirx.continue_loop")
         ):
@@ -503,6 +503,9 @@ def logical_and(*values):
     """Construct scalar/vector conjunction, preserving ordinary Python values."""
     if not values:
         raise TypeError("logical_and requires at least one operand")
+    values = [
+        value.asobject() if isinstance(value, _ffi.ObjectConvertible) else value for value in values
+    ]
     result = values[0]
     for value in values[1:]:
         if not isinstance(result, _ir.Expr) and not isinstance(value, _ir.Expr):
@@ -517,6 +520,9 @@ def logical_or(*values):
     """Construct scalar/vector disjunction, preserving ordinary Python values."""
     if not values:
         raise TypeError("logical_or requires at least one operand")
+    values = [
+        value.asobject() if isinstance(value, _ffi.ObjectConvertible) else value for value in values
+    ]
     result = values[0]
     for value in values[1:]:
         if not isinstance(result, _ir.Expr) and not isinstance(value, _ir.Expr):
@@ -529,11 +535,15 @@ def logical_or(*values):
 
 def logical_not(value):
     """Construct IR negation without coercing an IR expression to Python bool."""
+    if isinstance(value, _ffi.ObjectConvertible):
+        value = value.asobject()
     return _tir.Not(value) if isinstance(value, _ir.Expr) else not value
 
 
 def select(condition, true_value, false_value):
     """Construct a conditional expression or select an ordinary Python value."""
+    if isinstance(condition, _ffi.ObjectConvertible):
+        condition = condition.asobject()
     if not isinstance(condition, _ir.Expr):
         return true_value if condition else false_value
     return _tir.if_then_else(condition, true_value, false_value)

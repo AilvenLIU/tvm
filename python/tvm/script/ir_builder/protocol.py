@@ -139,3 +139,39 @@ def require_defined(value, name):
     if value is MISSING:
         raise NameError(f"name {name!r} is not defined")
     return value
+
+
+def is_python_bool(value):
+    """Identify an ordinary condition that selects a construction-time branch."""
+    return isinstance(value, bool)
+
+
+def compare_chain(logical_and, operands, comparisons):
+    """Evaluate each operand once, stopping after an ordinary false comparison."""
+    left = operands[0]()
+    result = True
+    for index, comparison in enumerate(comparisons):
+        right = operands[index + 1]()
+        current = comparison(left, right)
+        result = current if index == 0 else logical_and(result, current)
+        if isinstance(result, bool) and not result:
+            return False
+        left = right
+    return result
+
+
+def logical_chain(operation, operands, short_circuit):
+    """Preserve ordinary boolean short-circuiting while constructing symbolic operands."""
+    result = operands[0]()
+    for operand in operands[1:]:
+        if isinstance(result, bool) and result is short_circuit:
+            return result
+        result = operation(result, operand())
+    return result
+
+
+def select_lazy(operation, condition, true_value, false_value):
+    """Select one ordinary boolean arm, or construct both symbolic arms."""
+    if isinstance(condition, bool):
+        return true_value() if condition else false_value()
+    return operation(condition, true_value(), false_value())

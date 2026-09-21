@@ -371,13 +371,8 @@ class Compiler:
                     node.func = ast.copy_location(ast.Name(name, ast.Load()), node.func)
             method = None
             values = []
-            if isinstance(node, ast.BoolOp):
-                method = "logical_and" if isinstance(node.op, ast.And) else "logical_or"
-                values = node.values
-            elif isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.Not):
+            if isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.Not):
                 method, values = "logical_not", [node.operand]
-            elif isinstance(node, ast.IfExp):
-                method, values = "select", [node.test, node.body, node.orelse]
             if method is not None:
                 node = ast.copy_location(
                     ast.Call(
