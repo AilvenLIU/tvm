@@ -57,15 +57,24 @@ def _resolve(node, env, filename):
     return eval(compile(ast.fix_missing_locations(expression), filename, "eval"), env)
 
 
+def _closure_values(function):
+    values = {}
+    for name, cell in zip(function.__code__.co_freevars, function.__closure__ or ()):
+        try:
+            values[name] = cell.cell_contents
+        except ValueError:
+            # Recursive and later-bound locals are empty until the helper is used.
+            pass
+    return values
+
+
 def _capture(obj):
     target = obj if inspect.isfunction(obj) else None
     module = inspect.getmodule(obj)
     env = dict(vars(module)) if module is not None else {}
     env.update(getattr(target, "__globals__", {}))
     if target is not None:
-        closure = inspect.getclosurevars(target)
-        env.update(closure.globals)
-        env.update(closure.nonlocals)
+        env.update(_closure_values(target))
     filename = inspect.getsourcefile(obj)
     # Deferred annotations may be the only use of an enclosing local, so Python
     # need not put that value in the function's closure cells.
@@ -133,7 +142,9 @@ def make_helper(builder, *, preserve_return=True):
                 bound = inspect.signature(function).bind(*args, **kwargs)
                 bound.apply_defaults()
                 environment = (
-                    definition_env if options.get("hygienic", True) else _capture(function)
+                    {**definition_env, **_closure_values(function)}
+                    if options.get("hygienic", True)
+                    else _capture(function)
                 )
                 compiler = Compiler(function, environment)
                 node = compiler.tree.body[0]
@@ -394,16 +405,6 @@ class Compiler:
 
         def rewrite_expression(node):
             node = scope.rewrite(node) if scope is not None else copy.deepcopy(node)
-            if isinstance(node, ast.Call):
-                target = scope._resolve(node.func) if scope is not None else None
-                try:
-                    replacement = getattr(builder, "__tvm_call_overrides__", {}).get(target)
-                except TypeError:
-                    replacement = None
-                if replacement is not None:
-                    name = self.fresh("call")
-                    injected[name] = replacement
-                    node.func = ast.copy_location(ast.Name(name, ast.Load()), node.func)
             method = None
             values = []
             if isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.Not):
@@ -417,6 +418,20 @@ class Compiler:
                     ),
                     node,
                 )
+            return node
+
+        def rewrite_iterable(node):
+            node = copy.deepcopy(node)
+            if isinstance(node, ast.Call):
+                target = scope._resolve(node.func) if scope is not None else None
+                try:
+                    replacement = getattr(builder, "__tvm_call_overrides__", {}).get(target)
+                except TypeError:
+                    replacement = None
+                if replacement is not None:
+                    name = self.fresh("call")
+                    injected[name] = replacement
+                    node.func = ast.copy_location(ast.Name(name, ast.Load()), node.func)
             return node
 
         signature_values = {}
@@ -436,6 +451,7 @@ class Compiler:
             signature_names=set(bound_names),
             signature_values=signature_values,
             expression_rewriter=rewrite_expression,
+            iterable_rewriter=rewrite_iterable,
             nested_function=nested_statement,
             preserve_return=preserve_return,
         )

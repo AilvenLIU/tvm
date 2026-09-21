@@ -22,6 +22,7 @@ import sys as _sys
 from tvm.script.parser_v2.frontend import make_decorator as _make_decorator
 from tvm.script.parser_v2.frontend import make_helper as _make_helper
 from tvm.script.parser_v2.frontend import register_namespace as _register_namespace
+from tvm.tirx.layout import Axis as _Axis
 
 from . import builder_v2 as _builder
 from . import tile as _tile
@@ -42,3 +43,5 @@ macro = _make_helper(_builder, preserve_return=False)
 
 _register_namespace("T", _sys.modules[__name__])
 _register_namespace("tirx", _sys.modules[__name__])
+
+_register_namespace("Axis", _Axis)

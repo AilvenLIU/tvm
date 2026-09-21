@@ -42,6 +42,7 @@ class Transformer(ast.NodeTransformer):
         nested_function=None,
         preserve_return=False,
         signature_values=None,
+        iterable_rewriter=None,
     ):
         self.filename = filename
         self.environment = dict(environment)
@@ -54,6 +55,7 @@ class Transformer(ast.NodeTransformer):
         self.bound = set(self.signature_names)
         self.optional = {}
         self.expression_rewriter = expression_rewriter
+        self.iterable_rewriter = iterable_rewriter
         self.nested_function = nested_function
         self.preserve_return = preserve_return
 
@@ -680,6 +682,8 @@ class Transformer(ast.NodeTransformer):
         if node.orelse:
             self._error(node, "A construction loop does not support an else clause")
         frame, values = self.fresh("loop"), self.fresh("indices")
+        if self.iterable_rewriter is not None:
+            node.iter = self.iterable_rewriter(node.iter)
         context = self._assign(
             frame, self._operation("For", [self._expression(node.iter)], node), node
         )
