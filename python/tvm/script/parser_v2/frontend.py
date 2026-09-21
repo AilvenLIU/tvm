@@ -127,8 +127,8 @@ def make_decorator(builder, *, option_map=None, defaults=None):
     )
 
 
-def make_helper(builder, *, preserve_return=True):
-    """Create an explicit construction helper using the active shared builder."""
+def make_helper(builder, *, preserve_return=True, late_binding=False):
+    """Create a construction helper, optionally retaining live Python closure cells."""
 
     def decorator(function=None, **options):
         if function is not None and not inspect.isfunction(function):
@@ -142,7 +142,7 @@ def make_helper(builder, *, preserve_return=True):
                 bound = inspect.signature(function).bind(*args, **kwargs)
                 bound.apply_defaults()
                 environment = (
-                    {**definition_env, **_closure_values(function)}
+                    {**definition_env, **(_closure_values(function) if late_binding else {})}
                     if options.get("hygienic", True)
                     else _capture(function)
                 )

@@ -38,7 +38,7 @@ tile = _tile
 prim_func = _make_decorator(
     _builder, option_map={"private": "private", "s_tir": "s_tir", "persistent": "persistent"}
 )
-inline = _make_helper(_builder, preserve_return=True)
+inline = _make_helper(_builder, preserve_return=True, late_binding=True)
 macro = _make_helper(_builder, preserve_return=False)
 
 _register_namespace("T", _sys.modules[__name__])
