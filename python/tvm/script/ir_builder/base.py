@@ -353,7 +353,10 @@ def at(span, value):
     """
     if span is not None and isinstance(value, ir.Expr) and IRBuilder.is_in_scope():
         with _construction_span(span):
-            return IRBuilder.current()._set_current_source_span(value)
+            # Native code mutates and returns the same node. Keep the original
+            # Python facade too: FFI rewrapping would erase builder-owned callable
+            # behavior on GlobalVar subclasses despite preserving native identity.
+            IRBuilder.current()._set_current_source_span(value)
     return value
 
 
