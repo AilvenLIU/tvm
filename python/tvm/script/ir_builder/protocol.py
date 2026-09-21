@@ -48,16 +48,19 @@ class ExpressionArguments(NamedTuple):
     introduce: bool = False
     dtype: Any = None
     scalar_strings: bool = True
+    implicit_dtype: Any = None
 
 
-def expression_args(*fields, introduce=False, dtype=None, scalar_strings=True):
+def expression_args(*fields, introduce=False, dtype=None, scalar_strings=True, implicit_dtype=None):
     """Mark constructor fields whose nested strings are source expressions.
 
     ``introduce`` permits signature/match scopes to introduce otherwise unknown
     names. ``dtype`` optionally selects the dialect's symbol-construction policy;
     it is metadata, never an evaluator or a replacement constructor. Set
     ``scalar_strings=False`` when a bare string is literal shorthand while
-    strings nested in tuples/lists remain expressions.
+    strings nested in tuples/lists remain expressions. ``implicit_dtype`` selects
+    only the default for names introduced by strings; explicit TypeVars retain
+    the dialect default unless ``dtype`` is supplied.
     """
 
     def decorate(constructor):
@@ -66,7 +69,7 @@ def expression_args(*fields, introduce=False, dtype=None, scalar_strings=True):
         if unknown:
             raise ValueError(f"Unknown expression argument fields: {sorted(unknown)}")
         constructor.__tvm_expression_args__ = ExpressionArguments(
-            tuple(fields), bool(introduce), dtype, bool(scalar_strings)
+            tuple(fields), bool(introduce), dtype, bool(scalar_strings), implicit_dtype
         )
         return constructor
 
@@ -175,3 +178,4 @@ def select_lazy(operation, condition, true_value, false_value):
     if isinstance(condition, bool):
         return true_value() if condition else false_value()
     return operation(condition, true_value(), false_value())
+

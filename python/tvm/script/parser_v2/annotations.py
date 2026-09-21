@@ -327,6 +327,8 @@ class AnnotationScope:
                     scope._canonical_type_var(current.id, current, self.dtype)
                     if self.allow_names and current.id in scope.env:
                         scope._symbol(current.id, current, self.dtype)
+                        if self.in_string:
+                            scope._unbound_parameters.discard(current.id)
                     elif (
                         self.allow_names
                         and self.in_string
@@ -360,7 +362,13 @@ class AnnotationScope:
                             self.in_string = True
                             if self.allow_names and isinstance(current, ast.Name):
                                 scope._shape_declarations.setdefault(
-                                    current.id, (current, self.dtype)
+                                    current.id,
+                                    (
+                                        current,
+                                        self.dtype
+                                        if self.dtype is not None
+                                        else metadata.implicit_dtype,
+                                    ),
                                 )
                     return self.visit(current)
                 finally:
