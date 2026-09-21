@@ -21,6 +21,7 @@ and return concrete values. Dialects register their own function kinds here, so
 translation consumes construction policies without importing their owners.
 """
 
+from builtins import locals as locals
 from builtins import slice as slice
 from contextlib import nullcontext
 from dataclasses import dataclass
@@ -118,3 +119,15 @@ def at(span, value):
 
 
 _at = at
+
+
+def frame_result(frame):
+    """Read finalized lexical exports without imposing a dialect policy."""
+    return getattr(frame, "result", {})
+
+
+def require_defined(value, name):
+    """Reject reads of names absent from a finalized lexical export set."""
+    if value is MISSING:
+        raise NameError(f"name {name!r} is not defined")
+    return value

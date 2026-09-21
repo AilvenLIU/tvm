@@ -24,6 +24,11 @@ import tvm_ffi as _ffi
 
 from tvm import ir as _ir
 from tvm import relax as _relax
+from tvm import tirx as _tir
+from tvm.relax.distributed import DeviceMesh as _DeviceMesh
+from tvm.relax.distributed import DTensorType as _DTensorType
+from tvm.relax.distributed import Placement as _Placement
+from tvm.relax.distributed import device_mesh as device_mesh
 from tvm.script.ir_builder import IRBuilder as _IRBuilder
 from tvm.script.ir_builder import ir as _I
 from tvm.script.ir_builder import protocol as _protocol
@@ -31,7 +36,9 @@ from tvm.script.ir_builder import protocol as _protocol
 from .. import builder as _legacy
 from ..builder import *
 from ..builder import _ffi_api
+from ..builder import distributed as dist
 from ..builder import frame as _frame
+from ..builder.distributed.ir import _lookup_device_mesh
 
 
 @_protocol.expression_args("shape", introduce=True, dtype="int64", scalar_strings=False)
@@ -43,6 +50,21 @@ def Tensor(shape=None, dtype=None, vdevice=None, ndim=-1, *, span=None):
         target, _, index = vdevice.partition(":")
         vdevice = _I.lookup_vdevice(target, int(index) if index else 0)
     return _relax.TensorType(shape, dtype, vdevice, ndim, span)
+
+
+@_protocol.expression_args("shape", introduce=True, dtype="int64", scalar_strings=False)
+def DTensor(shape=None, dtype=None, device_mesh=None, placement="", *, ndim=-1, span=None):
+    """Construct a concrete distributed tensor type with resolved shape symbols."""
+    if device_mesh is None:
+        device_mesh = _DeviceMesh([], _ir.Range(0, 1))
+    elif isinstance(device_mesh, _python.str):
+        device_mesh = _lookup_device_mesh(device_mesh)
+    if isinstance(placement, _python.str):
+        placement = _Placement.from_text(placement)
+    return _DTensorType(Tensor(shape, dtype, ndim=ndim), device_mesh, placement, span)
+
+
+Range = _ir.Range
 
 
 @_protocol.expression_args("values", introduce=True, dtype="int64")
@@ -93,12 +115,18 @@ def Prim(dtype, *, span=None):
     return _ir.PrimType(dtype)
 
 
+Prim.__tvm_parameter_dtype__ = "dtype"
+
+
 def Object(*, span=None):
     """Construct the unconstrained Relax value type."""
     return _relax.AnyType(span)
 
 
 Any = Object
+
+
+is_type_var = _ir.is_prim_var
 
 
 def type_var(name, *, dtype=None, span=None):
@@ -222,9 +250,25 @@ def bind_(
     name_span=None,
     previous=_protocol.MISSING,
     declaration=False,
+    frame_value=False,
 ):
-    """Emit an immutable Relax binding and return the newly bound value."""
+    """Emit a binding, or name and preserve an existing frame-owned value."""
     _check_unterminated()
+    if frame_value:
+        if isinstance(value, _python.list | _python.tuple | _ir.Array):
+            for index, item in enumerate(value):
+                bind_(
+                    item,
+                    name=None if name is None else f"{name}_{index}",
+                    span=span,
+                    name_span=name_span,
+                    frame_value=True,
+                )
+        elif isinstance(value, _ir.Var):
+            if name is not None:
+                _IRBuilder.name(name, value)
+            _protocol.at(name_span if name_span is not None else span, value)
+        return value
     if declaration:
         if not _ir.is_prim_var(value):
             raise TypeError("A symbol declaration requires a concrete primitive variable")
@@ -321,9 +365,11 @@ __all__ = [
     *_legacy.ir.__all__,
     "Any",
     "Callable",
+    "DTensor",
     "For",
     "Object",
     "Prim",
+    "Range",
     "Shape",
     "Tensor",
     "Tuple",
@@ -332,10 +378,62 @@ __all__ = [
     "continue_",
     "bind_",
     "decl_function",
+    "device_mesh",
+    "dist",
     "emit_",
+    "is_type_var",
     "match_cast",
     "return_",
     "setitem",
     "type_var",
     "unpack",
 ]
+
+
+def _logical_pair(lhs, rhs, operation, primitive, python_operation):
+    if not isinstance(lhs, _ir.Expr) and not isinstance(rhs, _ir.Expr):
+        return python_operation(lhs, rhs)
+    if _ir.is_prim_expr(lhs) or _ir.is_prim_expr(rhs):
+        return primitive(lhs, rhs)
+    return operation(_value(lhs), _value(rhs))
+
+
+def logical_and(*values):
+    """Construct conjunction of concrete tensor or primitive expressions."""
+    if not values:
+        raise TypeError("logical_and requires at least one operand")
+    result = values[0]
+    for value in values[1:]:
+        result = _logical_pair(result, value, _relax.op.logical_and, _tir.And, lambda a, b: a and b)
+    return result
+
+
+def logical_or(*values):
+    """Construct disjunction of concrete tensor or primitive expressions."""
+    if not values:
+        raise TypeError("logical_or requires at least one operand")
+    result = values[0]
+    for value in values[1:]:
+        result = _logical_pair(result, value, _relax.op.logical_or, _tir.Or, lambda a, b: a or b)
+    return result
+
+
+def logical_not(value):
+    """Construct negation without coercing an IR expression to Python bool."""
+    if _ir.is_prim_expr(value):
+        return _tir.Not(value)
+    if isinstance(value, _ir.Expr):
+        return _relax.op.logical_not(value)
+    return not value
+
+
+def select(condition, true_value, false_value):
+    """Construct an elementwise conditional or select ordinary Python values."""
+    if _ir.is_prim_expr(condition):
+        return _tir.Select(condition, true_value, false_value)
+    if isinstance(condition, _ir.Expr):
+        return _relax.op.where(condition, _value(true_value), _value(false_value))
+    return true_value if condition else false_value
+
+
+__all__ += ["logical_and", "logical_not", "logical_or", "select"]

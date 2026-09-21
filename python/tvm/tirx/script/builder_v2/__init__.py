@@ -37,6 +37,8 @@ from tvm.tirx.script.builder import *  # pylint: disable=wildcard-import,unused-
 from tvm.tirx.script.builder import _ffi_api
 from tvm.tirx.script.builder import frame as _frame
 
+is_type_var = _ir.is_prim_var
+
 
 def type_var(name, *, dtype=None, span=None):
     """Construct a signature symbol; shape symbols default to int64."""
@@ -217,11 +219,27 @@ def bind_(
     name_span=None,
     previous=_MISSING,
     declaration=False,
+    frame_value=False,
 ):
-    """Bind concrete values, preserving existing mutable scalar storage."""
+    """Bind values, or name a frame-owned value without introducing new storage."""
     name_span = span if name_span is None else name_span
     _check_unterminated()
     with _span_context(span):
+        if frame_value:
+            if isinstance(value, _python.list | _python.tuple | _ir.Array):
+                for index, item in enumerate(value):
+                    bind_(
+                        item,
+                        name=None if name is None else f"{name}_{index}",
+                        span=span,
+                        name_span=name_span,
+                        frame_value=True,
+                    )
+            elif isinstance(value, _ir.Var | _tir.IterVar | _tir.Layout):
+                _name(value, name, name_span)
+            elif isinstance(value, _ir.TensorLoad) and _tir.is_buffer_var(value.source):
+                _name(value.source, name, name_span)
+            return value
         if declaration:
             if not _ir.is_prim_var(value):
                 raise TypeError("A symbol declaration requires a concrete primitive variable")
@@ -445,3 +463,62 @@ for _constructor in vars(_T).values():
     if isinstance(_constructor, _T.DtypeConstructor):
         _register_declaration(_constructor, dtype=_constructor._dtype_str)
 del _constructor
+
+
+def range_(*args):
+    """Construct a serial loop from the source builtin range arguments."""
+    if len(args) == 1:
+        start, stop, step = 0, args[0], 1
+    elif len(args) == 2:
+        start, stop = args
+        step = 1
+    elif len(args) == 3:
+        start, stop, step = args
+    else:
+        raise TypeError("range expects one to three arguments")
+    if isinstance(step, _python.int) and step == 0:
+        raise ValueError("range step cannot be zero")
+    return _T.serial(start, stop, step=step)
+
+
+__tvm_call_overrides__ = {_python.range: range_}
+
+
+def logical_and(*values):
+    """Construct scalar/vector conjunction, preserving ordinary Python values."""
+    if not values:
+        raise TypeError("logical_and requires at least one operand")
+    result = values[0]
+    for value in values[1:]:
+        if not isinstance(result, _ir.Expr) and not isinstance(value, _ir.Expr):
+            result = result and value
+        else:
+            lhs, rhs = _as_expr(result), _as_expr(value)
+            result = _tir.And(lhs, rhs) if lhs.ty.is_scalar() and rhs.ty.is_scalar() else lhs & rhs
+    return result
+
+
+def logical_or(*values):
+    """Construct scalar/vector disjunction, preserving ordinary Python values."""
+    if not values:
+        raise TypeError("logical_or requires at least one operand")
+    result = values[0]
+    for value in values[1:]:
+        if not isinstance(result, _ir.Expr) and not isinstance(value, _ir.Expr):
+            result = result or value
+        else:
+            lhs, rhs = _as_expr(result), _as_expr(value)
+            result = _tir.Or(lhs, rhs) if lhs.ty.is_scalar() and rhs.ty.is_scalar() else lhs | rhs
+    return result
+
+
+def logical_not(value):
+    """Construct IR negation without coercing an IR expression to Python bool."""
+    return _tir.Not(value) if isinstance(value, _ir.Expr) else not value
+
+
+def select(condition, true_value, false_value):
+    """Construct a conditional expression or select an ordinary Python value."""
+    if not isinstance(condition, _ir.Expr):
+        return true_value if condition else false_value
+    return _tir.Select(condition, true_value, false_value)
