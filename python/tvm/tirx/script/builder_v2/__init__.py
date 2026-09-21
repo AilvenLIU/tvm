@@ -48,7 +48,13 @@ def type_var(name, *, dtype=None, span=None):
 
 
 @_expression_args(
-    "shape", "strides", "elem_offset", "byte_offset", introduce=True, implicit_dtype="int32"
+    "shape",
+    "strides",
+    "elem_offset",
+    "byte_offset",
+    introduce=True,
+    implicit_dtype="int32",
+    compound_declarations=True,
 )
 def Buffer(
     shape,
@@ -474,7 +480,14 @@ def shared_scalar(dtype="float32"):
     return alloc_scalar(dtype, "shared")
 
 
-@_expression_args("shape", "strides", "elem_offset", introduce=True, implicit_dtype="int32")
+@_expression_args(
+    "shape",
+    "strides",
+    "elem_offset",
+    introduce=True,
+    implicit_dtype="int32",
+    compound_declarations=True,
+)
 @_wraps(_T.match_buffer)
 def match_buffer(*args, **kwargs):
     """Construct a native buffer match with resolved symbolic shape fields."""

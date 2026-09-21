@@ -306,8 +306,21 @@ class AnnotationScope:
                 self.allow_names = False
                 self.in_string = False
                 self.dtype = None
+                self.declaration_dtype = None
+                self.compound_declarations = False
 
             def visit_Name(self, current):
+                if (
+                    self.allow_names
+                    and self.in_string
+                    and self.compound_declarations
+                    and isinstance(current.ctx, ast.Load)
+                    and current.id not in scope.env
+                    and not hasattr(builtins, current.id)
+                ):
+                    scope._shape_declarations.setdefault(
+                        current.id, (current, self.declaration_dtype)
+                    )
                 if collect_declarations:
                     return current
                 if isinstance(current.ctx, ast.Load):
@@ -347,8 +360,16 @@ class AnnotationScope:
 
             def expression_field(self, current, metadata, *, nested=False):
                 old_allow, old_dtype, old_string = self.allow_names, self.dtype, self.in_string
+                old_compound, old_declaration_dtype = (
+                    self.compound_declarations,
+                    self.declaration_dtype,
+                )
                 self.allow_names = introduce and metadata.introduce
                 self.dtype = metadata.dtype
+                self.compound_declarations = metadata.compound_declarations
+                self.declaration_dtype = (
+                    metadata.dtype if metadata.dtype is not None else metadata.implicit_dtype
+                )
                 try:
                     if isinstance(current, ast.List | ast.Tuple):
                         current.elts = [
@@ -373,6 +394,10 @@ class AnnotationScope:
                     return self.visit(current)
                 finally:
                     self.allow_names, self.dtype, self.in_string = old_allow, old_dtype, old_string
+                    self.compound_declarations, self.declaration_dtype = (
+                        old_compound,
+                        old_declaration_dtype,
+                    )
 
             def visit_Call(self, current):
                 constructor = scope._resolve(current.func)

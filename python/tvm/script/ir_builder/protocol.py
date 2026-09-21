@@ -49,9 +49,17 @@ class ExpressionArguments(NamedTuple):
     dtype: Any = None
     scalar_strings: bool = True
     implicit_dtype: Any = None
+    compound_declarations: bool = False
 
 
-def expression_args(*fields, introduce=False, dtype=None, scalar_strings=True, implicit_dtype=None):
+def expression_args(
+    *fields,
+    introduce=False,
+    dtype=None,
+    scalar_strings=True,
+    implicit_dtype=None,
+    compound_declarations=False,
+):
     """Mark constructor fields whose nested strings are source expressions.
 
     ``introduce`` permits signature/match scopes to introduce otherwise unknown
@@ -60,7 +68,8 @@ def expression_args(*fields, introduce=False, dtype=None, scalar_strings=True, i
     ``scalar_strings=False`` when a bare string is literal shorthand while
     strings nested in tuples/lists remain expressions. ``implicit_dtype`` selects
     only the default for names introduced by strings; explicit TypeVars retain
-    the dialect default unless ``dtype`` is supplied.
+    the dialect default unless ``dtype`` is supplied. ``compound_declarations``
+    also permits first-use declarations inside quoted compound expressions.
     """
 
     def decorate(constructor):
@@ -69,7 +78,12 @@ def expression_args(*fields, introduce=False, dtype=None, scalar_strings=True, i
         if unknown:
             raise ValueError(f"Unknown expression argument fields: {sorted(unknown)}")
         constructor.__tvm_expression_args__ = ExpressionArguments(
-            tuple(fields), bool(introduce), dtype, bool(scalar_strings), implicit_dtype
+            tuple(fields),
+            bool(introduce),
+            dtype,
+            bool(scalar_strings),
+            implicit_dtype,
+            bool(compound_declarations),
         )
         return constructor
 
