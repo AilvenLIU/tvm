@@ -16,6 +16,8 @@
 # under the License.
 """Source acquisition and declaration/body execution for registered builders."""
 
+import __future__
+
 import ast
 import copy
 import inspect
@@ -24,12 +26,15 @@ import textwrap
 from dataclasses import dataclass, field
 from functools import wraps
 from types import SimpleNamespace
+from typing import TypeVar
 
 from tvm import ir
+from tvm.error import DiagnosticError
 from tvm.script.ir_builder import IRBuilder, protocol
 from tvm.script.ir_builder import ir as I
 
 from .annotations import AnnotationScope
+from .diagnostics import diagnostic_error
 from .functions import FunctionGroup, attach_python, declare_python, is_python_function
 
 _NAMESPACES = {}
@@ -47,7 +52,9 @@ def _resolve(node, env, filename):
 
 def _capture(obj):
     target = obj if inspect.isfunction(obj) else None
-    env = dict(getattr(target, "__globals__", {}))
+    module = inspect.getmodule(obj)
+    env = dict(vars(module)) if module is not None else {}
+    env.update(getattr(target, "__globals__", {}))
     if target is not None:
         closure = inspect.getclosurevars(target)
         env.update(closure.globals)
@@ -106,11 +113,16 @@ def make_helper(builder, *, preserve_return=True):
 
     def decorator(function=None, **options):
         def apply(function):
+            definition_env = _capture(function)
+
             @wraps(function)
             def invoke(*args, **kwargs):
                 bound = inspect.signature(function).bind(*args, **kwargs)
                 bound.apply_defaults()
-                compiler = Compiler(function, _capture(function))
+                environment = (
+                    definition_env if options.get("hygienic", True) else _capture(function)
+                )
+                compiler = Compiler(function, environment)
                 node = compiler.tree.body[0]
                 return compiler.run_statements(
                     node.body,
@@ -152,8 +164,14 @@ class Compiler:
     """Build from a copied original AST, retaining file and range information."""
 
     def __init__(self, source, env=None, filename=None):
-        self.env = {**_NAMESPACES, **(env or {})}
+        self.env = {"TypeVar": TypeVar, **_NAMESPACES, **(env or {})}
         self.original = source
+        members = vars(source).values() if inspect.isclass(source) else (source,)
+        self.compile_flags = 0
+        for member in members:
+            code = getattr(member, "__code__", None)
+            if code is not None:
+                self.compile_flags |= code.co_flags & __future__.annotations.compiler_flag
         if isinstance(source, str):
             text = source
             self.filename = filename or "<tvmscript>"
@@ -292,6 +310,7 @@ class Compiler:
                 set(spec.params) | set(spec.scope.symbols),
                 scope=spec.scope,
             )
+        frame.function.__name__ = spec.node.name
         return frame.function
 
     def run_statements(self, body, builder, env, bound_names, *, scope=None, preserve_return=False):
@@ -411,11 +430,22 @@ class Compiler:
         )
         ast.copy_location(helper, body[0])
         module = ast.fix_missing_locations(ast.Module([helper], []))
-        exec(compile(module, self.filename, "exec"), namespace)
+        exec(
+            compile(module, self.filename, "exec", flags=self.compile_flags, dont_inherit=True),
+            namespace,
+        )
         return namespace[helper_name](*(namespace[name] for name in names))
 
     def build(self):
         nodes = self.tree.body
+        env = dict(self.env)
+        if nodes and isinstance(nodes[-1], ast.FunctionDef | ast.ClassDef):
+            prefix, nodes = nodes[:-1], nodes[-1:]
+            if any(isinstance(node, ast.FunctionDef | ast.ClassDef) for node in prefix):
+                raise SyntaxError("Source must contain one function or module class")
+            if prefix:
+                setup = ast.fix_missing_locations(ast.Module(copy.deepcopy(prefix), []))
+                exec(compile(setup, self.filename, "exec"), env)
         if len(nodes) == 1 and isinstance(nodes[0], ast.ClassDef):
             root = nodes[0]
             statements = root.body
@@ -424,7 +454,6 @@ class Compiler:
             statements = nodes
         else:
             raise SyntaxError("Source must contain one function or module class")
-        env = dict(self.env)
         functions = [node for node in statements if isinstance(node, ast.FunctionDef)]
         python_functions = []
         with IRBuilder() as builder:
@@ -445,6 +474,20 @@ class Compiler:
                                 ),
                                 env,
                             )
+                            if isinstance(statement, ast.Assign | ast.AnnAssign):
+                                targets = (
+                                    statement.targets
+                                    if isinstance(statement, ast.Assign)
+                                    else [statement.target]
+                                )
+                                for target in targets:
+                                    if isinstance(target, ast.Name):
+                                        value = env[target.id]
+                                        if isinstance(value, ir.BaseFunc):
+                                            reference = I.decl_function(target.id, value)
+                                            I.def_function(target.id, value)
+                                            env[target.id] = reference
+                                        setattr(env[root.name], target.id, env[target.id])
                 ir_functions = []
                 for node in functions:
                     if is_python_function(self, node, env):
@@ -464,14 +507,23 @@ class Compiler:
             module = builder.get()
         if python_functions:
             attach_python(module, python_functions)
-        return module if root is not None else results[functions[0].name]
+        if root is not None:
+            module.__name__ = root.name
+            return module
+        return results[functions[0].name]
 
 
 def parse(source, extra_vars=None, *, filename=None, **options):
     """Construct from source using only entry-module registered construction policies."""
     env = {} if isinstance(source, str) else _capture(source)
     env.update(extra_vars or {})
-    return Compiler(source, env, filename).build()
+    compiler = Compiler(source, env, filename)
+    try:
+        return compiler.build()
+    except DiagnosticError:
+        raise
+    except Exception as error:
+        raise diagnostic_error(error, compiler) from error
 
 
 def ir_module(module=None, **options):

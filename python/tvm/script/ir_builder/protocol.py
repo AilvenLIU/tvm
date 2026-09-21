@@ -23,7 +23,7 @@ translation consumes construction policies without importing their owners.
 
 from builtins import locals as locals
 from builtins import slice as slice
-from contextlib import nullcontext
+from contextlib import contextmanager, nullcontext
 from dataclasses import dataclass
 from inspect import signature
 from typing import Any, NamedTuple
@@ -105,9 +105,17 @@ def function_kind(decorator):
     return getattr(decorator, "__tvm_function_kind__", None)
 
 
+@contextmanager
 def span_context(span):
-    """Use the existing builder's source-span stack for an eager operation."""
-    return IRBuilder.current().with_source_span(span) if span is not None else nullcontext()
+    """Use the existing span stack, preserving a failing operation's source range."""
+    context = IRBuilder.current().with_source_span(span) if span is not None else nullcontext()
+    try:
+        with context:
+            yield
+    except Exception as error:
+        if span is not None and not hasattr(error, "__tvm_script_span__"):
+            error.__tvm_script_span__ = span
+        raise
 
 
 def at(span, value):
