@@ -127,6 +127,7 @@ class IRBuilderTranspiler(ast.NodeTransformer):
         Original source filename, used in Python compilation and diagnostics.
     environment : dict of str to object
         Host namespace and callable bindings for static metadata lookup.
+        Other visible lexical spellings map to None, without retaining values.
         No expression evaluation or concrete symbol construction occurs here.
     builder_name : str
         Collision-free injected alias for the current construction namespace.
@@ -156,7 +157,8 @@ class IRBuilderTranspiler(ast.NodeTransformer):
     -----
     ``filename``, the span and name callbacks, and ``infrastructure_name`` belong
     to one source unit. ``namespace_bindings`` maps visible source spellings to
-    host namespaces and callables; assignments and parameters shadow entries.
+    host namespaces and callables, or None for opaque lexical values;
+    assignments and parameters shadow entries.
     ``dialect_prefix`` selects the builder alias and is restored after functions.
     ``bound`` holds identifier strings only. ``optional`` maps conditionally
     exported names to AST reads of cached named outputs, so a name defined by
@@ -1342,9 +1344,16 @@ class IRBuilderTranspiler(ast.NodeTransformer):
             for item in ast.walk(statement)
             if isinstance(item, ast.Name) and isinstance(item.ctx, ast.Load)
         }
-        free_names = annotation_names & body_names - self._assigned_names(node.body) - {
-            arg.arg for arg in node.args.args
-        }
+        # Known lexical values used only in the body also cross the existing
+        # builder capture boundary. This lets callable references keep dialect
+        # behavior without inspecting a call target or changing ordinary f(x).
+        # Unknown names retain normal Python lookup/error behavior.
+        free_names = (
+            annotation_names | self.namespace_bindings.keys()
+        ) & body_names - self._assigned_names(node.body) - {arg.arg for arg in node.args.args}
+        # Recursive references use the factory's finalized function binding,
+        # never an older outer function with the same spelling.
+        free_names.discard(node.name)
         for name in sorted(free_names):
             arguments.kwonlyargs.append(ast.arg(name))
             arguments.kw_defaults.append(

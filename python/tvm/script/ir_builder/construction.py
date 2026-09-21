@@ -374,7 +374,7 @@ class FunctionRecord:
         return self.symbols.symbols[name]
 
     def capture(self, name, fallback):
-        """Resolve a free annotation name against retained signature symbols.
+        """Resolve a free lexical name against retained signature symbols.
 
         Parameters
         ----------

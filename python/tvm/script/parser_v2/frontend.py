@@ -456,13 +456,20 @@ class Compiler:
         Only host namespace and callable metadata are exposed to the transformer.
         The name allocator is shared with this compiler; no IR state is shared.
         """
+        # Retain lexical spellings even when their values are opaque. The
+        # transformer may arrange builder-owned captures for those names, but
+        # it receives no concrete value or IR identity for them. A None entry
+        # also prevents a host binding from being mistaken for a builtin.
         metadata = {
             name: value
+            if (
+                inspect.ismodule(value)
+                or inspect.isfunction(value)
+                or inspect.isclass(value)
+                or type(value).__module__ == "types"
+            )
+            else None
             for name, value in self.env.items()
-            if inspect.ismodule(value)
-            or inspect.isfunction(value)
-            or inspect.isclass(value)
-            or type(value).__module__ == "types"
         }
         return IRBuilderTranspiler(
             self.filename,
