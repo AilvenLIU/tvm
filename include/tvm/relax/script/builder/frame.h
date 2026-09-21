@@ -37,7 +37,7 @@ namespace relax {
 class RelaxFrameNode : public IRBuilderFrameNode {
  public:
   /*! \brief Source range captured when this frame is entered. */
-  Span source_span;
+  Span span;
 
   void EnterWithScope() override;
   static void RegisterReflection() {

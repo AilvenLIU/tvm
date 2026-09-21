@@ -42,7 +42,7 @@ TVM_FFI_STATIC_INIT_BLOCK() {
 }
 
 void RelaxFrameNode::EnterWithScope() {
-  source_span = IRBuilder::Current()->GetCurrentSourceSpan();
+  span = IRBuilder::Current()->GetCurrentSourceSpan();
   IRBuilderFrameNode::EnterWithScope();
 }
 
@@ -84,9 +84,9 @@ void FunctionFrameNode::ExitWithScope() {
     block_builder->EndScope();
     function =
         tvm::relax::Function::CreateEmpty(params, ret_ty.value_or(tvm::relax::AnyType()),
-                                          is_pure.value_or(true), DictAttrs(attrs), source_span);
+                                          is_pure.value_or(true), DictAttrs(attrs), span);
     if (local) {
-      local_var = tvm::Var(name.value(), tvm::relax::GetType(function.value()), source_span);
+      local_var = tvm::Var(name.value(), tvm::relax::GetType(function.value()), span);
     } else {
       global_var = ir::DeclFunction(name.value(), function.value());
     }
@@ -99,7 +99,7 @@ void FunctionFrameNode::ExitWithScope() {
          "`return` to return an Expr";
 
   Expr body = this->block_builder->Normalize(
-      tvm::relax::SeqExpr(binding_blocks, output.value(), source_span));
+      tvm::relax::SeqExpr(binding_blocks, output.value(), span));
   // if the function is not private, add a global symbol to its attributes
   if (!is_private.value_or(false) && name.has_value() && !attrs.count(tvm::attr::kGlobalSymbol)) {
     attrs.Set(tvm::attr::kGlobalSymbol, name.value());
@@ -110,13 +110,13 @@ void FunctionFrameNode::ExitWithScope() {
                             /*ret_ty=*/ret_ty,
                             /*is_pure=*/is_pure.value_or(true),
                             /*attrs=*/DictAttrs(attrs),
-                            /*span=*/source_span);
+                            /*span=*/span);
   function = func;
   // Step 2: Update IRModule.
   if (local) {
     TVM_FFI_CHECK(local_var.has_value(), ValueError)
         << "A local function definition requires its declared reference";
-    EmitVarBinding(tvm::relax::VarBinding(local_var.value(), func, source_span));
+    EmitVarBinding(tvm::relax::VarBinding(local_var.value(), func, span));
   } else if (builder->frames.empty()) {
     // Case 0. No outer frame, return function directly
     TVM_FFI_CHECK(!builder->result.has_value(), ValueError)
@@ -225,7 +225,7 @@ void BindingBlockFrameNode::ExitWithScope() {
   }
 
   // Variable rewriting may rebuild bindings, so attach their own source ranges last.
-  block->span = source_span;
+  block->span = span;
   for (const auto& binding : block->bindings) {
     if (auto span = binding_spans.Get(binding->var)) {
       binding->span = span.value();
@@ -278,7 +278,7 @@ void IfFrameNode::ExitWithScope() {
       << "The body of then part is expected to be defined before exiting.";
   TVM_FFI_CHECK(else_expr.has_value(), ValueError)
       << "The body of else part is expected to be defined before exiting.";
-  auto body = tvm::relax::If(condition, then_expr.value(), else_expr.value(), source_span);
+  auto body = tvm::relax::If(condition, then_expr.value(), else_expr.value(), span);
   var = EmitV2(body, std::nullopt, std::nullopt);
   IRBuilder::Name(var_name, var);
 }
