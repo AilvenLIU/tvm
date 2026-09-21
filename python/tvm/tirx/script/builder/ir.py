@@ -3098,7 +3098,6 @@ def register_script_namespace(name: str, namespace: object) -> object:
 
     for module_name in [
         "tvm.tirx.script.builder",
-        "tvm.tirx.script.parser",
         "tvm.tirx.script",
         "tvm.script.tirx",
     ]:

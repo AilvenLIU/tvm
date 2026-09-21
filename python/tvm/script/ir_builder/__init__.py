@@ -35,6 +35,7 @@ import importlib
 from typing import Any
 
 from .base import IRBuilder
+from .protocol import MISSING, _at, expression_args
 
 
 def __getattr__(name: str) -> Any:

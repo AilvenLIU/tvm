@@ -1,4 +1,3 @@
-# isort: skip_file
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,6 +14,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""The core parser infra"""
+"""Shared module entry paired with explicit construction exports."""
 
-from . import diagnostics, dispatch, doc, doc_core, entry, evaluator, parser, utils
+import sys
+
+from tvm.ir import Range as Range
+from tvm.script.ir_builder.ir import *  # noqa: F403
+
+from .frontend import ir_module as ir_module
+from .frontend import pyfunc as pyfunc
+from .frontend import register_namespace
+
+register_namespace("I", sys.modules[__name__])

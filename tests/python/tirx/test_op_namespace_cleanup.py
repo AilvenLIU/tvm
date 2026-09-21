@@ -229,7 +229,8 @@ def test_backend_specific_wrappers_are_not_root_exports():
 
 
 def test_backend_load_updates_tirx_alias_and_script_facades(monkeypatch):
-    from tvm.tirx.script import builder, parser
+    from tvm.tirx import script
+    from tvm.tirx.script import builder
     from tvm.tirx.script.builder import ir as builder_ir
 
     backend_name = "unit_test_backend"
@@ -278,7 +279,7 @@ def test_backend_load_updates_tirx_alias_and_script_facades(monkeypatch):
         namespace = getattr(builder_ir, namespace_name)
         assert isinstance(namespace, UnitTestNamespace)
         assert getattr(builder, namespace_name) is namespace
-        assert getattr(parser, namespace_name) is namespace
+        assert getattr(script, namespace_name) is namespace
         assert getattr(T, namespace_name) is namespace
     finally:
         tvm.backend.loader._LOADED_BACKENDS.pop(backend_name, None)

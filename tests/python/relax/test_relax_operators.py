@@ -16,6 +16,7 @@
 # under the License.
 # ruff: noqa: E501, F841
 
+import subprocess
 import sys
 import tempfile
 
@@ -404,6 +405,26 @@ def test_op_call_inplace_packed(exec_mode):
     assert (result[0].numpy() == sum).all()
     assert result[1] != tvm_arr_a and result[1] != tvm_arr_b
     assert (result[1].numpy() == sum).all()
+
+
+@pytest.mark.parametrize("clear_explicitly", [False, True])
+def test_py_func_registry_reentrant_cleanup(clear_explicitly):
+    # A callback can retain an owner whose destructor clears the registry again.
+    # Exercise process teardown separately so shutdown errors fail the test.
+    source = """
+import sys
+import tvm
+class Owner:
+    def __del__(self):
+        tvm.get_global_func("vm.builtin.clear_py_func_registry")()
+owner = Owner()
+tvm.get_global_func("vm.builtin.register_py_func")("cleanup", lambda retained=owner: 7)
+assert tvm.get_global_func("vm.builtin.get_py_func")("cleanup")() == 7
+del owner
+if sys.argv[1] == "True":
+    tvm.get_global_func("vm.builtin.clear_py_func_registry")()
+"""
+    subprocess.run([sys.executable, "-c", source, str(clear_explicitly)], check=True, timeout=60)
 
 
 def test_op_call_py_func(exec_mode):

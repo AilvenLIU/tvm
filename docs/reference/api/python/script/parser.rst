@@ -20,6 +20,11 @@ tvm.script.parser
 
 tvm.script.parser
 *****************
+The shared parser translates Python source into calls on registered construction
+namespaces. Dialect script packages provide their decorators and register the
+corresponding builder operations. Construction returns concrete IR values, with
+support for eager and postponed function annotations.
+
 .. automodule:: tvm.script.parser
    :members:
    :imported-members:
@@ -28,10 +33,17 @@ tvm.script.parser.ir
 ********************
 .. automodule:: tvm.script.parser.ir
 
-tvm.script.parser.relax
-***********************
-.. automodule:: tvm.script.parser.relax
+tvm.relax.script
+****************
+.. automodule:: tvm.relax.script
+   :members: function, macro
+   :imported-members:
 
-tvm.script.parser.tirx
-**********************
-.. automodule:: tvm.script.parser.tirx
+tvm.tirx.script
+***************
+.. automodule:: tvm.tirx.script
+   :members: prim_func, inline, macro
+   :imported-members:
+
+The public aliases ``tvm.script.parser.relax`` and ``tvm.script.parser.tirx``
+continue to resolve to these dialect script packages.

@@ -15,9 +15,12 @@
 # specific language governing permissions and limitations
 # under the License.
 # ruff: noqa: F401
-"""Unittests for tvm.script.parser.core"""
+"""Source locations in TVMScript parsing"""
 
+import ast
 import inspect
+import textwrap
+from types import SimpleNamespace
 
 import pytest
 import tvm_ffi
@@ -27,8 +30,6 @@ import tvm
 import tvm.testing
 from tvm.ir import Call, SequentialSpan, TensorLoad, assert_structural_equal
 from tvm.script import tirx as T
-from tvm.script.parser.core import doc_core as doc
-from tvm.script.parser.core.diagnostics import Source
 from tvm.script.tirx import tile as Tx
 from tvm.tirx.stmt import TilePrimitiveCall
 
@@ -51,53 +52,21 @@ def matmul(a: T.handle, b: T.handle, c: T.handle) -> None:
             C[vi, vj] = C[vi, vj] + A[vi, vk] * B[vj, vk]
 
 
-def test_source_base():
-    source = Source(matmul)
-    assert (
-        source.source_name == inspect.getsourcefile(matmul)
-        and source.start_line is not None
-        and source.start_column == 0
-        and source.source == inspect.getsource(matmul)
-        and source.full_source == inspect.getsource(inspect.getmodule(matmul))
-    )
+def _source(function):
+    lines, start = inspect.getsourcelines(function)
+    indentation = len(lines[0]) - len(lines[0].lstrip())
+    tree = ast.parse(textwrap.dedent("".join(lines)))
+    ast.increment_lineno(tree, start - 1)
+    for node in ast.walk(tree):
+        if hasattr(node, "col_offset"):
+            node.col_offset += indentation
+        if getattr(node, "end_col_offset", None) is not None:
+            node.end_col_offset += indentation
+    return SimpleNamespace(filename=inspect.getsourcefile(function), tree=tree)
 
 
-def test_source_ast():
-    source = Source(matmul)
-    mod = source.as_ast()
-    assert isinstance(mod, doc.Module)
-    func_def = mod.body[0]
-    assert isinstance(func_def, doc.FunctionDef)
-    assert func_def.name == "matmul"
-    func_args = func_def.args
-    assert (
-        len(func_args.args) == 3
-        and func_args.args[0].arg == "a"
-        and func_args.args[1].arg == "b"
-        and func_args.args[2].arg == "c"
-    )
-    func_body = func_def.body
-    assert len(func_body) == 4
-    func_assigns = func_body[:3]
-    assert (
-        isinstance(func_assigns[0], doc.Assign)
-        and func_assigns[0].targets[0].id == "A"
-        and isinstance(func_assigns[1], doc.Assign)
-        and func_assigns[1].targets[0].id == "B"
-        and isinstance(func_assigns[2], doc.Assign)
-        and func_assigns[2].targets[0].id == "C"
-    )
-    func_for = func_body[3]
-    assert (
-        len(func_for.target.elts) == 3
-        and func_for.target.elts[0].id == "i"
-        and func_for.target.elts[1].id == "j"
-        and func_for.target.elts[2].id == "k"
-    )
-    for_body = func_for.body
-    assert len(for_body) == 1
-    for_block = for_body[0]
-    assert isinstance(for_block, doc.With) and len(for_block.body) == 2
+def _source_range(source, node):
+    return (source.filename, node.lineno, node.col_offset, node.end_lineno, node.end_col_offset)
 
 
 def _span_range(span):
@@ -118,21 +87,6 @@ def _find_ir_node(func, predicate):
     return matches[0]
 
 
-def test_source_to_span_matches_parser_diagnostic_coordinates():
-    source = Source(matmul)
-    assign = source.as_ast().body[0].body[0]
-    span = source.to_span(assign)
-    expected_location = (
-        source.start_line + 1,
-        5,
-        source.start_line + 1,
-        38,
-    )
-
-    assert source.location(assign) == expected_location
-    assert _span_range(span) == (source.source_name, *expected_location)
-
-
 def test_parser_attaches_span_to_direct_call():
     @_tirx_source
     def direct_call():
@@ -143,8 +97,8 @@ def test_parser_attaches_span_to_direct_call():
             0,
         )
 
-    source = Source(direct_call)
-    call_ast = source.as_ast().body[0].body[-1].value
+    source = _source(direct_call)
+    call_ast = source.tree.body[0].body[-1].value
     func = T.prim_func(direct_call)
     call = _find_ir_node(
         func,
@@ -153,7 +107,7 @@ def test_parser_attaches_span_to_direct_call():
         ),
     )
 
-    assert _span_range(call.span) == _span_range(source.to_span(call_ast))
+    assert _span_range(call.span) == _source_range(source, call_ast)
 
 
 def test_parser_attaches_span_to_nested_tensor_load():
@@ -163,8 +117,8 @@ def test_parser_attaches_span_to_nested_tensor_load():
         output = T.alloc_buffer((1,), "int32")
         output[0] = source_buffer[0] + 1
 
-    source = Source(nested_load)
-    load_ast = source.as_ast().body[0].body[-1].value.left
+    source = _source(nested_load)
+    load_ast = source.tree.body[0].body[-1].value.left
     func = T.prim_func(nested_load)
     load = _find_ir_node(
         func,
@@ -173,15 +127,15 @@ def test_parser_attaches_span_to_nested_tensor_load():
         ),
     )
 
-    assert _span_range(load.span) == _span_range(source.to_span(load_ast))
+    assert _span_range(load.span) == _source_range(source, load_ast)
 
 
 def test_parser_retains_inline_call_site_and_definition_spans():
     def wait_impl(barrier):
         T.cuda.mbarrier_wait(barrier, 0)
 
-    wait_source = Source(wait_impl)
-    wait_call_ast = wait_source.as_ast().body[0].body[0].value
+    wait_source = _source(wait_impl)
+    wait_call_ast = wait_source.tree.body[0].body[0].value
     wait = T.inline(wait_impl)
 
     @_tirx_source
@@ -190,8 +144,8 @@ def test_parser_retains_inline_call_site_and_definition_spans():
         barriers = T.alloc_buffer((1,), "uint64", scope="shared")
         wait(T.address_of(barriers[0]))
 
-    caller_source = Source(inline_call)
-    caller_call_ast = caller_source.as_ast().body[0].body[-1].value
+    caller_source = _source(inline_call)
+    caller_call_ast = caller_source.tree.body[0].body[-1].value
     func = T.prim_func(inline_call)
     call = _find_ir_node(
         func,
@@ -202,8 +156,8 @@ def test_parser_retains_inline_call_site_and_definition_spans():
 
     assert isinstance(call.span, SequentialSpan)
     assert [_span_range(span) for span in call.span.spans] == [
-        _span_range(caller_source.to_span(caller_call_ast)),
-        _span_range(wait_source.to_span(wait_call_ast)),
+        _source_range(caller_source, caller_call_ast),
+        _source_range(wait_source, wait_call_ast),
     ]
 
 
@@ -213,12 +167,12 @@ def test_parser_attaches_span_to_tile_primitive_call():
         A = T.alloc_buffer((16,), "float32")
         Tx.memset(A[0:16], T.float32(0))
 
-    source = Source(tile_call)
-    call_ast = source.as_ast().body[0].body[-1].value
+    source = _source(tile_call)
+    call_ast = source.tree.body[0].body[-1].value
     func = T.prim_func(tile_call)
     call = _find_ir_node(func, lambda node: isinstance(node, TilePrimitiveCall))
 
-    assert _span_range(call.span) == _span_range(source.to_span(call_ast))
+    assert _span_range(call.span) == _source_range(source, call_ast)
 
 
 def test_parser_spans_do_not_affect_structural_identity():
@@ -228,8 +182,8 @@ def test_parser_spans_do_not_affect_structural_identity():
     func_a = tvm.script.from_source(source_a)
     func_b = tvm.script.from_source(source_b)
 
-    assert _span_range(func_a.body.span) == ("<str>", 3, 5, 3, 18)
-    assert _span_range(func_b.body.span) == ("<str>", 5, 5, 5, 18)
+    assert _span_range(func_a.body.span) == ("<str>", 3, 4, 3, 17)
+    assert _span_range(func_b.body.span) == ("<str>", 5, 4, 5, 17)
     assert tvm_ffi.structural_hash(func_a) == tvm_ffi.structural_hash(func_b)
     assert_structural_equal(func_a, func_b)
 

@@ -17,7 +17,10 @@
 # under the License.
 """TVM runtime namespace."""
 
+import atexit as _atexit
+
 from tvm_ffi import convert, Object
+from tvm_ffi import get_global_func as _get_global_func
 from tvm_ffi._dtype import dtype as DataType, DataTypeCode
 
 # Import _ffi_node_api for its side effect of installing AsRepr as
@@ -52,3 +55,9 @@ except (ImportError, ValueError):
     disco = None  # type: ignore[assignment]
 
 from tvm_ffi import Shape as ShapeTuple
+
+# Release Python callbacks while their interpreter is still alive, before native
+# static destruction. The VM extension is optional in runtime-only builds.
+_clear_py_func_registry = _get_global_func("vm.builtin.clear_py_func_registry", allow_missing=True)
+if _clear_py_func_registry is not None:
+    _atexit.register(_clear_py_func_registry)

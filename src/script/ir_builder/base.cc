@@ -64,6 +64,7 @@ void AppendNormalizedSpan(const Span& span, std::vector<Span>* normalized) {
 
 TVM_FFI_STATIC_INIT_BLOCK() {
   IRBuilderFrameNode::RegisterReflection();
+  TypeVarFrameNode::RegisterReflection();
   IRBuilderNode::RegisterReflection();
 }
 
@@ -193,6 +194,11 @@ TVM_FFI_STATIC_INIT_BLOCK() {
       .def_method("script.ir_builder.IRBuilderFrameEnter", &IRBuilderFrameNode::EnterWithScope)
       .def_method("script.ir_builder.IRBuilderFrameExit", &IRBuilderFrameNode::ExitWithScope)
       .def_method("script.ir_builder.IRBuilderFrameAddCallback", &IRBuilderFrameNode::AddCallback)
+      .def("script.ir_builder.TypeVarFrame", []() { return TypeVarFrame(); })
+      .def("script.ir_builder.TypeVarFrameSetSymbol",
+           [](TypeVarFrame frame, ffi::String name, tvm::Var symbol) {
+             frame->symbols.Set(name, symbol);
+           })
       .def("script.ir_builder.IRBuilder", []() { return IRBuilder(); })
       .def_method("script.ir_builder.IRBuilderEnter", &IRBuilder::EnterWithScope)
       .def_method("script.ir_builder.IRBuilderExit", &IRBuilder::ExitWithScope)

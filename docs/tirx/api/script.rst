@@ -30,10 +30,14 @@ authoring layers and TIRx IR, see :ref:`tirx-programming-model`.
 
 Parser entry points
 -------------------
-.. automodule:: tvm.tirx.script.parser.entry
-   :members:
+.. automodule:: tvm.tirx.script
+   :members: prim_func, inline, macro
+   :imported-members:
    :no-index:
-   :exclude-members: TIRInline
+
+The entry points use the shared ``tvm.script.parser`` and the concrete
+construction operations in ``tvm.tirx.script.builder``. Function signatures
+support both eager and postponed Python annotations.
 
 Core IR builder
 ---------------

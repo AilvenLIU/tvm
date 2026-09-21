@@ -194,6 +194,9 @@ class BasePyModule:
         if not hasattr(self.ir_mod, "pyfuncs") or not self.ir_mod.pyfuncs:
             return
 
+        for func_name, py_func in self.ir_mod.pyfuncs.items():
+            self.add_python_function(func_name, py_func)
+
         try:
             register_py_func = tvm.get_global_func("vm.builtin.register_py_func")
         except ValueError:
@@ -208,14 +211,14 @@ class BasePyModule:
                         k: self._convert_tvm_to_pytorch(v) for k, v in kwargs.items()
                     }
 
-                    result = original_func(self, *converted_args, **converted_kwargs)
+                    result = original_func(*converted_args, **converted_kwargs)
 
                     return self._convert_pytorch_to_tvm(result)
 
                 wrapper.__name__ = name
                 return wrapper
 
-            wrapped_func = create_py_func_wrapper(func_name, py_func)
+            wrapped_func = create_py_func_wrapper(func_name, getattr(self, func_name))
             register_py_func(func_name, wrapped_func)
 
     def call_tir(self, tir_func, args, out_ty):
@@ -612,3 +615,28 @@ class BasePyModule:
 
         script_content = self.script(**kwargs)
         cprint(script_content, style=style, black_format=black_format)
+
+
+class PyModuleFactory:
+    """A parsed module that creates independent executable Python module instances.
+
+    The parsed IR and original Python callables remain available for inspection.
+    Each invocation clones the IR container while retaining module metadata and
+    closure identities, then uses the normal runtime compilation and call bridge.
+    """
+
+    def __init__(self, ir_module: IRModule, original_class=None):
+        self.ir_module = ir_module
+        self.original_class = original_class
+        self.__name__ = getattr(ir_module, "__name__", "Module")
+
+    def __getattr__(self, name):
+        return getattr(self.ir_module, name)
+
+    def __getitem__(self, name):
+        return self.ir_module[name]
+
+    def __call__(self, device=None, target=None):
+        instance_module = self.ir_module.clone()
+        instance_module.pyfuncs = dict(getattr(self.ir_module, "pyfuncs", {}))
+        return BasePyModule(instance_module, tvm.cpu(0) if device is None else device, target)

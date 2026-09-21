@@ -17,11 +17,12 @@
 """A generic IRBuilder across the TVM stack"""
 
 from collections.abc import Callable
-from contextlib import contextmanager
+from contextlib import contextmanager, nullcontext
 from typing import Any
 
 from tvm_ffi import register_object as _register_object
 
+from tvm import ir
 from tvm.runtime import Object as _Object
 
 from . import _ffi_api
@@ -229,3 +230,142 @@ class IRBuilder(_Object):
         """
         assert len(s) == len(vs)
         return [IRBuilder.name(i, v) for i, v in zip(s, vs)]
+
+
+# V2 absence is distinct from legacy protocol state; no function data is retained.
+class _Missing:
+    def __repr__(self):
+        return "MISSING"
+
+
+MISSING = _Missing()
+
+
+def source_span(location):
+    """Materialize a source range without retaining source-unit state.
+
+    Parameters
+    ----------
+    location : ir.Span, tuple, or None
+        Optional source range accepted by source_span; None creates no source metadata.
+
+    Returns
+    -------
+    ir.Span or None
+        The existing span, a span with exact supplied coordinates, or None.
+
+    Raises
+    ------
+    TypeError or ValueError
+        The location cannot be unpacked or its fields are invalid.
+
+    Notes
+    -----
+    Generated tuples reuse one parser-created SourceName per source unit. Lines are one-based
+    and columns are zero-based UTF-8 byte offsets. Filename strings remain available to
+    handwritten callers. None is a no-op and accesses no builder; this operation enters no
+    frame.
+
+    Examples
+    --------
+    >>> source_span(None) is None
+    True
+    """
+    if location is None or isinstance(location, ir.Span):
+        return location
+    source_name, line, end_line, column, end_column = location
+    if isinstance(source_name, str):
+        source_name = ir.SourceName(source_name)
+    return ir.Span(source_name, line, end_line, column, end_column)
+
+
+@contextmanager
+def _construction_span(span):
+    """Apply a builder operation's span through the existing native span stack.
+
+    This private construction helper is used only by builders, never emitted by
+    the transpiler. ``span`` accepts the source_span input forms. None yields
+    directly without IR instrumentation. Otherwise it pushes/pops the existing
+    builder span stack when active, and retains no context after exit. Without
+    a builder it still materializes diagnostic locations.
+    Exceptions retain their original type and receive __tvm_script_location__
+    as a plain location tuple only when an inner operation has not already
+    supplied a more precise range. Diagnostics need never inspect an IR object.
+    Span-construction and nested-operation errors propagate unchanged.
+    """
+    if span is None:
+        yield
+        return
+    span = source_span(span)
+    context = (
+        IRBuilder.current().with_source_span(span)
+        if span is not None and IRBuilder.is_in_scope()
+        else nullcontext()
+    )
+    try:
+        with context:
+            yield
+    except Exception as error:
+        if span is not None and not hasattr(error, "__tvm_script_location__"):
+            diagnostic_span = span.spans[-1] if isinstance(span, ir.SequentialSpan) else span
+            error.__tvm_script_location__ = (
+                str(diagnostic_span.source_name.name),
+                diagnostic_span.line,
+                diagnostic_span.end_line,
+                diagnostic_span.column,
+                diagnostic_span.end_column,
+            )
+        raise
+
+
+def at(span, value):
+    """Attach a source range to a concrete expression when a builder is active.
+
+    Parameters
+    ----------
+    span : ir.Span, tuple, or None
+        Optional source range. A tuple contains SourceName (or filename), start/end lines, and
+        start/end UTF-8 byte columns; None adds no metadata.
+    value : object
+        Already constructed IR expression or arbitrary Python value.
+
+    Returns
+    -------
+    object
+        The same value, with missing expression source metadata filled when supported.
+
+    Raises
+    ------
+    TypeError or ValueError
+        A source range used for an IR expression is invalid.
+
+    Notes
+    -----
+    None returns the value without source instrumentation. Ordinary Python values and values
+    outside a builder pass through. An active builder temporarily uses its native source-span
+    stack; no construction frame or persistent cache is created. This is a value operation, not
+    a context manager or callback.
+
+    Examples
+    --------
+    >>> at(None, 3)
+    3
+    """
+    if span is not None and isinstance(value, ir.Expr) and IRBuilder.is_in_scope():
+        with _construction_span(span):
+            return IRBuilder.current()._set_current_source_span(value)
+    return value
+
+
+def _frame_result(frame, name):
+    """Read one explicit export without consulting ambient construction state.
+
+    Dialects pass a completed frame whose result is its finalized export map,
+    or a Python-branch dictionary containing host lexical results. The map stays
+    private to its owner; a missing name returns MISSING instead of leaking a
+    branch-local binding. No frame is entered and no result is cached globally.
+    """
+    if not isinstance(name, str):
+        raise TypeError("A frame result name must be a string")
+    exports = frame if isinstance(frame, dict) else getattr(frame, "result", {})
+    return exports.get(name, MISSING)
