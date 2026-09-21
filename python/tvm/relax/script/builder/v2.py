@@ -859,8 +859,12 @@ def bind_(
     # Shared dtype constructors return anonymous primitive Vars. Reuse the
     # signature's canonical symbol for declarations, while named aliases and
     # computed primitive expressions retain ordinary Relax binding semantics.
-    if ty is None and not frame_value and _ir.is_prim_var(value) and not value.name:
-        return _TypeVarFrame.current().resolve(name, value.ty, span=name_span)
+    if not frame_value and _ir.is_prim_var(value) and not value.name:
+        # A matching explicit annotation still denotes the same declaration.
+        # Mismatches follow the existing native binding validation below.
+        ty = None if ty is None else _type(ty)
+        if ty is None or _ffi.structural_equal(ty, value.ty):
+            return _TypeVarFrame.current().resolve(name, value.ty, span=name_span)
     if isinstance(value, _TypeVarDecl):
         return _TypeVarFrame.current().resolve(name, value.ty, span=name_span)
     if frame_value:
