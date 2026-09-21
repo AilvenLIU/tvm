@@ -16,8 +16,6 @@
 # under the License.
 # pylint: disable=invalid-name, missing-docstring
 
-from __future__ import annotations
-
 import numpy as np
 
 import tvm

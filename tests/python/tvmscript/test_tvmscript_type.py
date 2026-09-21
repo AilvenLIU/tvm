@@ -15,8 +15,6 @@
 # specific language governing permissions and limitations
 # under the License.
 # pylint: disable=missing-function-docstring,missing-module-docstring,invalid-name,pointless-string-statement
-from __future__ import annotations
-
 from tvm.script import tirx as T
 
 """

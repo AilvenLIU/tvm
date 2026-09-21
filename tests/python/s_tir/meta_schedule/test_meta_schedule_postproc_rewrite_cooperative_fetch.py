@@ -17,8 +17,6 @@
 # pylint: disable=missing-module-docstring,missing-function-docstring,missing-class-docstring
 # ruff: noqa: E501, F401
 
-from __future__ import annotations
-
 import tvm
 import tvm.testing
 from tvm import tirx

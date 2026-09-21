@@ -16,8 +16,6 @@
 # under the License.
 # ruff: noqa: F403, F405, F841
 
-from __future__ import annotations
-
 import functools
 import math
 

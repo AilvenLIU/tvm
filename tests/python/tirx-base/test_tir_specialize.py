@@ -17,8 +17,6 @@
 # pylint: disable=missing-function-docstring, missing-module-docstring
 # ruff: noqa: F401
 
-from __future__ import annotations
-
 import pytest
 
 import tvm

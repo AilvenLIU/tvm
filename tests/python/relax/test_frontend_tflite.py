@@ -1,6 +1,4 @@
 # ruff: noqa: E402
-from __future__ import annotations
-
 import pytest
 
 pytest.importorskip("tensorflow", reason="tensorflow not available")

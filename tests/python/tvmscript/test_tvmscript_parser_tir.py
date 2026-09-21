@@ -16,8 +16,6 @@
 # under the License.
 """Unittests for tvm.script.parser.tirx"""
 
-from __future__ import annotations
-
 import pytest
 import tvm_ffi
 

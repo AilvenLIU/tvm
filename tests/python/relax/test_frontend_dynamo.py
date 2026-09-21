@@ -15,8 +15,6 @@
 # specific language governing permissions and limitations
 # under the License.
 # ruff: noqa: F401, F811
-from __future__ import annotations
-
 import pytest
 
 pytest.importorskip("torch._dynamo")

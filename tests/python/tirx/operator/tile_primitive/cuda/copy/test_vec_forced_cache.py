@@ -24,8 +24,6 @@ must lower the global load to ``ld.global.nc`` with the hint suffixes
 instead of a plain ``ld.global``.
 """
 
-from __future__ import annotations
-
 import numpy as np
 import pytest
 

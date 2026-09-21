@@ -26,7 +26,6 @@ We'll cover various ways to define Relax functions, including using TVMScript,
 and relax NNModule API.
 """
 
-from __future__ import annotations
 
 ######################################################################
 # Create Relax programs using TVMScript
@@ -37,6 +36,7 @@ from __future__ import annotations
 #
 # In this section, we will show how to define a simple MLP model with only
 # high-level Relax operators using TVMScript.
+
 from tvm import relax, topi
 from tvm.script import ir as I
 from tvm.script import relax as R

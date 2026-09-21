@@ -16,8 +16,6 @@
 # under the License.
 # ruff: noqa: F401, F821, F841
 
-from __future__ import annotations
-
 from itertools import product
 
 import numpy as np

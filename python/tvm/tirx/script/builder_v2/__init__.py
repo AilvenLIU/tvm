@@ -572,3 +572,8 @@ def _global_callee(function):
 
 
 _register_call_kind(_sys.modules[__name__], _ir.GlobalVar, _global_callee)
+
+
+from tvm.script.parser_v2.annotations import enable_eager_constructors as _enable_eager_constructors
+
+_enable_eager_constructors(_sys.modules[__name__], classes=("Buffer",))

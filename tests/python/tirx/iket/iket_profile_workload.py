@@ -21,8 +21,6 @@ Run as a normal Python program; :func:`iket.run` performs the replay::
     --output-dir /tmp/tvm-iket-workload
 """
 
-from __future__ import annotations
-
 import argparse
 import json
 import os

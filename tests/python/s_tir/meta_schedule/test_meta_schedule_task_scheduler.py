@@ -17,8 +17,6 @@
 # ruff: noqa: F821, RUF012
 """Test Meta Schedule Task Scheduler"""
 
-from __future__ import annotations
-
 import random
 import weakref
 
@@ -387,7 +385,7 @@ def test_meta_schedule_task_scheduler_gradient_based_with_null_search_strategy()
         def __init__(self, rounds_with_empty_candidates):
             self.rounds_with_empty_candidates = rounds_with_empty_candidates
 
-        def _initialize_with_tune_context(self, context: TuneContext) -> None:
+        def _initialize_with_tune_context(self, context: "TuneContext") -> None:
             pass
 
         def pre_tuning(self, *args, **kwargs):

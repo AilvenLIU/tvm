@@ -16,8 +16,6 @@
 # under the License.
 # ruff: noqa: E712, F841
 
-from __future__ import annotations
-
 import gc
 import multiprocessing
 import os

@@ -44,11 +44,10 @@ This tutorial walks through the full workflow step by step.
     :depth: 1
 """
 
-from __future__ import annotations
-
 ######################################################################
 # Preparation
 # -----------
+
 import os
 
 try:

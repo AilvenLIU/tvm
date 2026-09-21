@@ -15,10 +15,8 @@
 # specific language governing permissions and limitations
 # under the License.
 """Test sharded loader"""
-
-from __future__ import annotations
-
 # pylint: disable=missing-docstring
+
 import pathlib
 import tempfile
 

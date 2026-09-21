@@ -17,8 +17,6 @@
 # ruff: noqa: E501, F401
 """Tests for MetaSchedule search space on CUDA"""
 
-from __future__ import annotations
-
 from tvm.s_tir import meta_schedule as ms
 from tvm.s_tir.meta_schedule.testing.space_generation import (
     check_sketches,

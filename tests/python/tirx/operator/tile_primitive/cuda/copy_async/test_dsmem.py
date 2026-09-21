@@ -21,8 +21,6 @@ on the g2s/s2g TMA family. Any cross-cutting copy_async helper that both
 files need should live in a shared module, not be duplicated.
 """
 
-from __future__ import annotations
-
 import functools
 
 import numpy as np

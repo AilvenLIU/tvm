@@ -18,8 +18,6 @@
 
 """Test rpc based launcher for Android"""
 
-from __future__ import annotations
-
 import tempfile
 
 import numpy as np

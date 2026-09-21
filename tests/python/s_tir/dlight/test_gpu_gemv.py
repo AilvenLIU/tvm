@@ -17,8 +17,6 @@
 # pylint: disable=missing-docstring
 # ruff: noqa: E501, F841
 
-from __future__ import annotations
-
 import tvm
 import tvm.testing
 from tvm.s_tir import dlight as dl

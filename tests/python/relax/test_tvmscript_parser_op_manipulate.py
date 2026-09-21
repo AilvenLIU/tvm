@@ -17,8 +17,6 @@
 # ruff: noqa: E731
 
 
-from __future__ import annotations
-
 import tvm
 import tvm.script
 import tvm.testing

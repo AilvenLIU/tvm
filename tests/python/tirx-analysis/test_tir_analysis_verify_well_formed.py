@@ -16,8 +16,6 @@
 # under the License.
 # ruff: noqa: F841
 
-from __future__ import annotations
-
 import json
 from concurrent.futures import ThreadPoolExecutor
 

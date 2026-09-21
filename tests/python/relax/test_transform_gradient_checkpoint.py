@@ -17,8 +17,6 @@
 # ruff: noqa: E501, F811
 """Unit tests for gradient with checkpointing."""
 
-from __future__ import annotations
-
 import tvm
 import tvm.testing
 from tvm import relax

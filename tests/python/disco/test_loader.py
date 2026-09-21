@@ -17,8 +17,6 @@
 # ruff: noqa: F401, F841
 """Test sharded loader"""
 
-from __future__ import annotations
-
 # pylint: disable=missing-docstring
 import json
 import tempfile

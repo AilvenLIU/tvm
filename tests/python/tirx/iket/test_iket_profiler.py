@@ -16,8 +16,6 @@
 
 """Tests for IKET lowering, metadata, installation versions, and trace contracts."""
 
-from __future__ import annotations
-
 import hashlib
 import importlib
 import inspect

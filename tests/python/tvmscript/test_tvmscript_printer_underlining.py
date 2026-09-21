@@ -16,8 +16,6 @@
 # under the License.
 
 
-from __future__ import annotations
-
 import pytest
 from tvm_ffi.access_path import AccessPath
 

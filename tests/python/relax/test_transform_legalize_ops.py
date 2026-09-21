@@ -16,8 +16,6 @@
 # under the License.
 # ruff: noqa: E501
 
-from __future__ import annotations
-
 import pytest
 
 import tvm

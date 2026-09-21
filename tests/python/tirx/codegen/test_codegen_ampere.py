@@ -29,8 +29,6 @@ with f32 accumulation the per-lane register counts are:
     D/C: 4 f32 accumulator registers (0,1,2,3)
 """
 
-from __future__ import annotations
-
 import numpy as np
 import pytest
 

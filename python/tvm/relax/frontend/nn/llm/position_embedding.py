@@ -17,8 +17,6 @@
 
 """Operators for positional embeddings, e.g. RoPE."""
 
-from __future__ import annotations
-
 import math
 from collections.abc import Callable
 from functools import partial

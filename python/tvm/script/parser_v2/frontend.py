@@ -34,7 +34,7 @@ from tvm.error import DiagnosticError
 from tvm.script.ir_builder import IRBuilder, protocol
 from tvm.script.ir_builder import ir as I
 
-from .annotations import AnnotationScope
+from .annotations import AnnotationScope, take_eager_annotations
 from .diagnostics import diagnostic_error
 from .functions import (
     FunctionGroup,
@@ -114,6 +114,7 @@ def make_decorator(builder, *, option_map=None, defaults=None):
             raise ValueError("Construction decorators require a function or keyword options")
 
         def apply(function):
+            take_eager_annotations(function)
             function.__tvm_function_kind__ = decorator.__tvm_function_kind__
             function.__tvm_function_options__ = options
             if _inside_class(function):
@@ -309,6 +310,20 @@ class Compiler:
     def declare(self, node, env, *, local=False):
         kind, options = self.function_kind(node, env)
         scope = AnnotationScope(env, kind.builder, self.filename, self.span)
+        original = (
+            getattr(self.original, node.name, None)
+            if inspect.isclass(self.original)
+            else self.original
+            if inspect.isfunction(self.original) and node is self.tree.body[0]
+            else None
+        )
+        eager = inspect.isfunction(original) and not (
+            original.__code__.co_flags & __future__.annotations.compiler_flag
+        )
+        eager_scope = getattr(original, "__tvm_eager_annotations__", None)
+        if eager_scope is not None:
+            scope.symbols.update(eager_scope.symbols)
+            scope.env.update(eager_scope.symbols)
         spec = Signature(node, kind, options, scope)
         if kind.metadata.get("python"):
             return spec
@@ -317,13 +332,27 @@ class Compiler:
         with X.decl_function(**options, **mode, span=self.span(node)) as frame:
             X.func_name(node.name)
             scope.prepare_type_params(getattr(node, "type_params", []))
-            scope.prepare_parameters(node.args)
+            arguments = node.args
+            if eager:
+                arguments = copy.copy(node.args)
+                arguments.args = [
+                    argument
+                    for argument in node.args.args
+                    if isinstance(original.__annotations__.get(argument.arg), str)
+                ]
+            scope.prepare_parameters(arguments)
             if node.args.posonlyargs or node.args.kwonlyargs or node.args.vararg or node.args.kwarg:
                 raise SyntaxError("IR signatures require ordinary named parameters")
             for argument in node.args.args:
                 if argument.annotation is None:
                     raise SyntaxError(f"Parameter {argument.arg!r} requires an annotation")
-                annotation = scope.evaluate(argument.annotation)
+                annotation = (
+                    original.__annotations__[argument.arg]
+                    if eager
+                    else scope.evaluate(argument.annotation)
+                )
+                if eager and isinstance(annotation, str):
+                    annotation = scope.evaluate(argument.annotation)
                 value = X.arg(
                     argument.arg,
                     scope.symbols.get(argument.arg, annotation),
@@ -331,7 +360,13 @@ class Compiler:
                 )
                 spec.params[argument.arg] = scope.env[argument.arg] = value
             if node.returns is not None:
-                spec.result_type = scope.evaluate(node.returns, introduce=False)
+                spec.result_type = (
+                    original.__annotations__["return"]
+                    if eager
+                    else scope.evaluate(node.returns, introduce=False)
+                )
+                if eager and isinstance(spec.result_type, str):
+                    spec.result_type = scope.evaluate(node.returns, introduce=False)
                 X.func_ret_type(spec.result_type)
         spec.reference = frame.reference
         scope.env[node.name] = spec.reference
@@ -510,6 +545,18 @@ class Compiler:
                     env[root.name] = SimpleNamespace(**references)
                     for statement in statements:
                         if not isinstance(statement, ast.FunctionDef):
+                            # Eager signatures and the module share the original metadata
+                            # objects, including identity-sensitive device meshes.
+                            infos = getattr(self.original, "__tvm_script_global_infos__", None)
+                            if (
+                                infos is not None
+                                and isinstance(statement, ast.Expr)
+                                and isinstance(statement.value, ast.Call)
+                                and _resolve(statement.value.func, env, self.filename)
+                                is I.module_global_infos
+                            ):
+                                I.module_global_infos(infos)
+                                continue
                             exec(
                                 compile(
                                     ast.fix_missing_locations(

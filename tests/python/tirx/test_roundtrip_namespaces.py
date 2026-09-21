@@ -15,8 +15,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from __future__ import annotations
-
 import tvm
 from tvm.ir import assert_structural_equal
 from tvm.script import tirx as T

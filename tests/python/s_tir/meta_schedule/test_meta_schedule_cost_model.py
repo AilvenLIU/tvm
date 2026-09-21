@@ -16,8 +16,6 @@
 # under the License.
 # pylint: disable=missing-docstring
 # ruff: noqa: F401
-from __future__ import annotations
-
 import os
 import shutil
 import tempfile
@@ -293,13 +291,13 @@ def test_meta_schedule_xgb_model_callback_as_function():
             ),
         )
 
-        def obj(ys_pred: np.ndarray, d_train1: xgb.DMatrix):  # type: ignore # pylint: disable = unused-argument
+        def obj(ys_pred: np.ndarray, d_train1: "xgb.DMatrix"):  # type: ignore # pylint: disable = unused-argument
             return d_train.obj_square_error(ys_pred)
 
-        def rmse(ys_pred: np.ndarray, d_train1: xgb.DMatrix):  # type: ignore # pylint: disable = unused-argument
+        def rmse(ys_pred: np.ndarray, d_train1: "xgb.DMatrix"):  # type: ignore # pylint: disable = unused-argument
             return d_train.rmse(ys_pred)
 
-        def avg_peak_score(ys_pred: np.ndarray, d_train1: xgb.DMatrix):  # type: ignore # pylint: disable = unused-argument
+        def avg_peak_score(ys_pred: np.ndarray, d_train1: "xgb.DMatrix"):  # type: ignore # pylint: disable = unused-argument
             return d_train.average_peak_score(ys_pred, model.average_peak_n)
 
         new_booster = xgb.train(

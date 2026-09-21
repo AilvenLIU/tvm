@@ -17,8 +17,6 @@
 # pylint: disable=invalid-name,missing-function-docstring
 """Dot product related intrinsics."""
 
-from __future__ import annotations
-
 from tvm.script import tirx as T
 
 from .. import TensorIntrin

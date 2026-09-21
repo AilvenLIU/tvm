@@ -16,8 +16,6 @@
 # under the License.
 """Basic tests for a Disco session"""
 
-from __future__ import annotations
-
 # pylint: disable=missing-docstring
 import socket
 import subprocess

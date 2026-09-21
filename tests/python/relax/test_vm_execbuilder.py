@@ -16,8 +16,6 @@
 # under the License.
 """Lowest level testing VM. Test execbuilder and execution."""
 
-from __future__ import annotations
-
 import numpy as np
 import pytest
 import tvm_ffi

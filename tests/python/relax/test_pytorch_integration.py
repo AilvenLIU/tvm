@@ -25,8 +25,6 @@ This test verifies:
 5. Missing packed-function error handling
 """
 
-from __future__ import annotations
-
 import pytest
 import torch
 import torch.nn.functional as F

@@ -17,8 +17,6 @@
 # ruff: noqa: F401
 """Tests to validate relax optimize layout tranform pass."""
 
-from __future__ import annotations
-
 import numpy as np
 import pytest
 

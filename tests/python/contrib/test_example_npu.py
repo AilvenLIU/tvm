@@ -21,8 +21,6 @@ This test file demonstrates how to test a custom NPU backend
 implementation using TVM's testing infrastructure.
 """
 
-from __future__ import annotations
-
 import numpy as np
 import pytest
 

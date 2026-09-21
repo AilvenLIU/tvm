@@ -17,8 +17,6 @@
 # pylint: disable=invalid-name,missing-function-docstring,unused-variable
 """Intrinsics for tensorization on Apple GPU."""
 
-from __future__ import annotations
-
 from typing import Literal
 
 from tvm.s_tir import TensorIntrin

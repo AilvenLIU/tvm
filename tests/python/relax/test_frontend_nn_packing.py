@@ -15,8 +15,6 @@
 # specific language governing permissions and limitations
 # under the License.
 # pylint: disable=invalid-name,missing-docstring
-from __future__ import annotations
-
 import tvm
 from tvm.relax.frontend import nn
 from tvm.script import ir as I

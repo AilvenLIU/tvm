@@ -15,8 +15,6 @@
 # specific language governing permissions and limitations
 # under the License.
 # pylint: disable=missing-module-docstring,missing-function-docstring,missing-class-docstring
-from __future__ import annotations
-
 from tvm.s_tir import Schedule
 from tvm.s_tir import meta_schedule as ms
 from tvm.script import tirx as T

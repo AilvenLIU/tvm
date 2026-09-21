@@ -16,8 +16,6 @@
 # under the License.
 
 
-from __future__ import annotations
-
 import tvm
 from tvm import tirx as tir
 from tvm.script import tirx as T

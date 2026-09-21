@@ -20,8 +20,6 @@ Tests verify the transform output using TVMScript before/after patterns.
 Runtime error tests are in tests/python/codegen/test_codegen_error_handling.py.
 """
 
-from __future__ import annotations
-
 import pytest
 import tvm_ffi
 

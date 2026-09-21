@@ -18,8 +18,6 @@
 
 """Test FNormalize usage"""
 
-from __future__ import annotations
-
 import pytest
 import tvm_ffi
 

@@ -16,8 +16,6 @@
 # under the License.
 """Tests for TIRx op namespace split between T, T.tile, and device namespaces."""
 
-from __future__ import annotations
-
 import importlib
 import sys
 import types

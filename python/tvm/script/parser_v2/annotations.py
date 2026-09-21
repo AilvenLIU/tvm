@@ -26,7 +26,11 @@ import copy
 import inspect
 import linecache
 import re
+from functools import lru_cache, wraps
+from types import SimpleNamespace
 from typing import TypeVar
+
+from tvm.script.ir_builder import IRBuilder
 
 
 class AnnotationScope:
@@ -427,3 +431,183 @@ class AnnotationScope:
                 return current
 
         return ast.fix_missing_locations(Rewrite().visit(copy.deepcopy(node)))
+
+
+@lru_cache(maxsize=128)
+def _source_tree(filename, text):
+    return ast.parse(text, filename)
+
+
+def _signature_at(frame, builder):
+    if IRBuilder.is_in_scope():
+        return None
+    text = "".join(linecache.getlines(frame.f_code.co_filename))
+    if not text:
+        return None
+    tree = _source_tree(frame.f_code.co_filename, text)
+    env = {**frame.f_globals, **frame.f_locals}
+    scope = AnnotationScope(env, builder, frame.f_code.co_filename, lambda node: None)
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.FunctionDef):
+            continue
+        if not (node.lineno <= frame.f_lineno <= node.body[0].lineno):
+            continue
+        if frame.f_code.co_name == node.name:
+            continue
+        decorators = [
+            item.func if isinstance(item, ast.Call) else item for item in node.decorator_list
+        ]
+        if any(getattr(scope._resolve(item), "__tvm_function_kind__", None) for item in decorators):
+            return node, scope
+    return None
+
+
+def take_eager_annotations(function):
+    """Transfer signature construction state from the defining Python frame."""
+    frame = inspect.currentframe().f_back
+    try:
+        while frame is not None:
+            states = frame.f_locals.get("__tvm_eager_annotations__", {})
+            scope = states.pop((function.__name__, function.__code__.co_filename), None)
+            if scope is not None:
+                if not states:
+                    frame.f_locals.pop("__tvm_eager_annotations__", None)
+                function.__tvm_eager_annotations__ = scope
+                return
+            frame = frame.f_back
+    finally:
+        del frame
+
+
+def enable_eager_constructors(builder, *, classes=()):
+    """Resolve registered symbolic arguments into concrete eager annotations.
+
+    Constructor metadata and signature declarations are identical in both entry
+    modes. Python evaluates eager annotations once; the parsing decorator retains
+    their values and signature symbols for declaration and definition.
+    """
+    wrappers = {}
+
+    def wrap(constructor):
+        metadata = constructor.__tvm_expression_args__
+        signature = inspect.signature(constructor)
+        as_type = constructor.__name__ in classes
+
+        @wraps(constructor)
+        def invoke(*args, **kwargs):
+            if as_type:
+                args = args[1:]
+            bound = signature.bind(*args, **kwargs)
+            caller = inspect.currentframe().f_back
+            state = None
+            try:
+                found = _signature_at(caller, builder)
+                if found is not None:
+                    node, fresh_scope = found
+                    states = caller.f_locals.setdefault("__tvm_eager_annotations__", {})
+                    key = (node.name, caller.f_code.co_filename)
+                    state = states.get(key)
+                    if state is None:
+                        state = states[key] = fresh_scope
+                        for parameter in node.args.args:
+                            if parameter.annotation is not None:
+                                state.rewrite(
+                                    parameter.annotation, introduce=True, collect_declarations=True
+                                )
+                    scope = state
+                else:
+                    scope = AnnotationScope(
+                        {**caller.f_globals, **caller.f_locals},
+                        builder,
+                        caller.f_code.co_filename,
+                        lambda node: None,
+                    )
+            finally:
+                del caller
+
+            def symbolic(value, nested=False):
+                if isinstance(value, TypeVar):
+                    return True
+                if isinstance(value, str):
+                    return nested or metadata.scalar_strings
+                if isinstance(value, tuple | list):
+                    return any(symbolic(item, True) for item in value)
+                return False
+
+            if not any(symbolic(bound.arguments.get(name)) for name in metadata.fields):
+                try:
+                    return constructor(*args, **kwargs)
+                except Exception:
+                    if state is not None:
+                        states.pop(key, None)
+                    raise
+            counter = 0
+
+            def fresh(value):
+                nonlocal counter
+                while True:
+                    name = f"__tvm_eager_value_{counter}"
+                    counter += 1
+                    if name not in scope.env:
+                        scope.env[name] = value
+                        return ast.Name(name, ast.Load())
+
+            def expression(value):
+                if isinstance(value, str):
+                    return ast.Constant(value)
+                if isinstance(value, tuple | list):
+                    kind = ast.Tuple if isinstance(value, tuple) else ast.List
+                    return kind([expression(item) for item in value], ast.Load())
+                if isinstance(value, TypeVar):
+                    scope.env[value.__name__] = value
+                    return ast.Name(value.__name__, ast.Load())
+                return fresh(value)
+
+            call = ast.Call(
+                fresh(constructor),
+                [],
+                [
+                    ast.keyword(
+                        name, expression(value) if name in metadata.fields else fresh(value)
+                    )
+                    for name, value in bound.arguments.items()
+                ],
+            )
+            ast.fix_missing_locations(call)
+            scope.rewrite(call, introduce=True, collect_declarations=True)
+            try:
+                return scope._eval(scope.rewrite(call, introduce=True))
+            except Exception as error:
+                if state is None:
+                    raise
+                states.pop(key, None)
+                from .diagnostics import diagnostic_error
+
+                raise diagnostic_error(
+                    error,
+                    SimpleNamespace(
+                        filename=scope.filename, tree=ast.Module(body=[node], type_ignores=[])
+                    ),
+                ) from error
+
+        if as_type:
+            # A construction class also supports ordinary Python type unions.
+            # __new__ returns the concrete IR object, never an annotation proxy.
+            return type(
+                constructor.__name__,
+                (),
+                {
+                    "__new__": staticmethod(invoke),
+                    "__signature__": signature,
+                    "__module__": constructor.__module__,
+                    "__doc__": constructor.__doc__,
+                    "__tvm_expression_args__": metadata,
+                },
+            )
+        return invoke
+
+    for name, constructor in list(vars(builder).items()):
+        if getattr(constructor, "__tvm_expression_args__", None) is not None:
+            if constructor not in wrappers:
+                wrappers[constructor] = wrap(constructor)
+            setattr(builder, name, wrappers[constructor])

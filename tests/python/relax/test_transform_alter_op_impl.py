@@ -17,8 +17,6 @@
 # ruff: noqa: E501, E731, F841
 
 
-from __future__ import annotations
-
 import tvm.testing
 from tvm import relax
 from tvm.script import ir as I

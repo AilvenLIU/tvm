@@ -17,8 +17,6 @@
 # pylint: disable=invalid-name,missing-function-docstring
 """Intrinsics for AMDGPU tensorization."""
 
-from __future__ import annotations
-
 from tvm.runtime import convert
 from tvm.script import tirx as T
 from tvm.tirx.expr import Cast, IntImm

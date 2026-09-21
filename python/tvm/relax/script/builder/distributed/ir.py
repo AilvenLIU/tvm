@@ -45,6 +45,7 @@ from tvm.relax.utils import convert_to_expr
 from tvm.runtime import _tensor
 from tvm.script.ir_builder import IRBuilder
 from tvm.script.ir_builder.ir import IRModuleFrame
+from tvm.script.ir_builder.ir.ir import lookup_global_info
 
 from . import _ffi_api
 
@@ -131,10 +132,13 @@ def const(
 
 
 def _lookup_device_mesh(device_mesh_str: py_str) -> DeviceMesh:
-    if not IRBuilder.is_in_scope():
-        raise ValueError("device_mesh cannot be found in global info")
     name, index_str = device_mesh_str.split("[")
     index = int(index_str[:-1])
+    if not IRBuilder.is_in_scope():
+        device_mesh = lookup_global_info(name, index)
+        if not isinstance(device_mesh, DeviceMesh):
+            raise TypeError("The device_mesh global info must be a DeviceMesh.")
+        return device_mesh
     frames = IRBuilder.current().frames
     for f in frames:
         if isinstance(f, IRModuleFrame):

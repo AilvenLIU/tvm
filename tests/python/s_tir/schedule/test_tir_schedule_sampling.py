@@ -15,8 +15,6 @@
 # specific language governing permissions and limitations
 # under the License.
 # ruff: noqa: F401
-from __future__ import annotations
-
 import sys
 from collections import defaultdict
 

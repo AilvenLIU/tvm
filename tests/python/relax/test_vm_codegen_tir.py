@@ -19,8 +19,6 @@
 Restrictions: all shape lowered, explicit allocation.
 """
 
-from __future__ import annotations
-
 import tvm
 import tvm.testing
 from tvm import relax

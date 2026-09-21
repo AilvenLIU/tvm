@@ -16,9 +16,8 @@
 # under the License.
 """This file tests advanced emit_te features with help of TVMScript assertion"""
 
-from __future__ import annotations
-
 # The tests here depend on tvmscript
+
 import tvm
 from tvm import relax as rx
 from tvm import te, tirx

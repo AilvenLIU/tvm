@@ -21,8 +21,6 @@ Comprehensive test cases for Relax to PyFunc converter.
 Tests all major features including basic operations, call_tir, call_dps_packed, and symbolic shapes.
 """
 
-from __future__ import annotations
-
 import numpy as np
 import pytest
 import torch

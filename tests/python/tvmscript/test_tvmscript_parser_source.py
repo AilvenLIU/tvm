@@ -17,8 +17,6 @@
 # ruff: noqa: F401
 """Unittests for tvm.script.parser.core"""
 
-from __future__ import annotations
-
 import inspect
 
 import pytest

@@ -15,8 +15,6 @@
 # specific language governing permissions and limitations
 # under the License.
 # ruff: noqa: F401
-from __future__ import annotations
-
 import numpy
 import pytest
 import tvm_ffi

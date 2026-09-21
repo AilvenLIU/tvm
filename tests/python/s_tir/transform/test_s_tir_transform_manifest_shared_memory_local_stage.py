@@ -15,8 +15,6 @@
 # specific language governing permissions and limitations
 # under the License.
 # ruff: noqa: E501, F401
-from __future__ import annotations
-
 import tvm
 import tvm.testing
 from tvm import s_tir

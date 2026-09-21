@@ -17,8 +17,6 @@
 # pylint: disable=missing-docstring
 # ruff: noqa: F401, F841
 
-from __future__ import annotations
-
 import pytest
 from tvm_ffi import structural_walk
 

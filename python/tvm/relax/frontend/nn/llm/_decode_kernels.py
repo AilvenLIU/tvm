@@ -26,7 +26,6 @@ Contents:
   log-sum-exp attention outputs in place. Used by multi-stage decoding and by
   the distributed KV-transfer path.
 """
-from __future__ import annotations
 
 # pylint: disable=too-many-statements,too-many-arguments,invalid-name,line-too-long
 import math

@@ -16,8 +16,6 @@
 # under the License.
 """AssertStmt codegen tests: verify kind and message_parts produce correct exceptions."""
 
-from __future__ import annotations
-
 import pytest
 
 import tvm

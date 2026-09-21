@@ -30,8 +30,6 @@ computational graph, tensor programs, and potential calls to external libraries.
     :depth: 1
 """
 
-from __future__ import annotations
-
 import numpy as np
 
 ######################################################################

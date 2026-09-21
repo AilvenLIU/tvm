@@ -17,8 +17,6 @@
 # ruff: noqa: F401
 """Tests to validate relax fast math tranform pass."""
 
-from __future__ import annotations
-
 import pytest
 
 import tvm.testing

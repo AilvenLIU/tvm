@@ -16,8 +16,6 @@
 # under the License.
 """Tests for ``T.ptx.addr(base, byte_offset)``."""
 
-from __future__ import annotations
-
 import pytest
 import tvm_ffi
 

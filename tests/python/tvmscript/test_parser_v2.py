@@ -14,16 +14,18 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Small, namespace-independent checks of the explicit construction protocol."""
+"""Construction protocol and Python annotation entry regressions."""
 
 import ast
 import copy
 import itertools
+import linecache
 import re
+import sys
 import textwrap
 import traceback
 from pathlib import Path
-from types import SimpleNamespace
+from types import ModuleType, SimpleNamespace
 
 import pytest
 
@@ -295,3 +297,101 @@ def test_shared_parser_dependency_direction():
     assert not violations, "Shared parsing must consume registered policies:\n" + "\n".join(
         violations
     )
+
+
+def _execute_annotations(source, postponed, monkeypatch):
+    """Execute inspectable Python source with only its explicit future flags."""
+    source = ("from __future__ import annotations\n" if postponed else "") + textwrap.dedent(source)
+    module = ModuleType("_annotation_test")
+    module.__file__ = "/annotation_test.py"
+    monkeypatch.setitem(sys.modules, module.__name__, module)
+    monkeypatch.setitem(
+        linecache.cache,
+        module.__file__,
+        (len(source), None, source.splitlines(True), module.__file__),
+    )
+    exec(compile(source, module.__file__, "exec", dont_inherit=True), module.__dict__)
+    return module
+
+
+@pytest.mark.parametrize("postponed", [False, True], ids=["eager", "postponed"])
+def test_annotation_identity_effects_and_recovery(postponed, monkeypatch):
+    # Keep each body on its signature line to exercise eager source-range detection.
+    module = _execute_annotations(
+        """
+        from typing import TypeVar
+        from tvm.script import relax as R
+        tensor = R.Tensor
+        calls, errors, functions = [], [], []
+        def note(label):
+            calls.append(label)
+            return "float32"
+        for dtype in ["definitely_invalid_dtype", "float32", "float32"]:
+            M = TypeVar("M")
+            try:
+                @R.function
+                def f(x: tensor(("n", M), note("x")), y: tensor((8,), dtype)) -> \
+                    'tensor(("n", M), note("return"))': return x
+                functions.append(f)
+            except Exception as error:
+                errors.append(error)
+        @R.function
+        def quoted(x: "tensor((8,), 'float32')") -> tensor((8,), "float32"): return x
+        def annotation():
+            calls.append("object")
+            return R.Object()
+        @R.function
+        def opaque(x: annotation()) -> annotation(): return x
+        """,
+        postponed,
+        monkeypatch,
+    )
+    assert len(module.errors) == 1
+    assert "unknown dtype" in str(module.errors[0]).lower()
+    assert module.calls == ["x", "x", "return", "x", "return", "object", "object"]
+    first, second = module.functions
+    for function in module.functions:
+        for argument_dim, return_dim in zip(function.params[0].ty.shape, function.ret_ty.shape):
+            assert argument_dim.same_as(return_dim)
+            assert str(argument_dim.ty.dtype) == "int64"
+    for first_dim, second_dim in zip(first.params[0].ty.shape, second.params[0].ty.shape):
+        assert not first_dim.same_as(second_dim)
+    assert module.quoted.params[0].ty == module.quoted.ret_ty
+
+
+@pytest.mark.parametrize("postponed", [False, True], ids=["eager", "postponed"])
+def test_annotation_module_context(postponed, monkeypatch):
+    module = _execute_annotations(
+        """
+        from tvm.script import ir as I, relax as R
+        def factory():
+            @I.ir_module
+            class Mod:
+                I.module_global_infos({
+                    "mesh": [R.device_mesh((2,), I.Range(0, 2))],
+                    "vdevice": [I.vdevice("llvm")],
+                })
+                @R.function
+                def distributed(
+                    x: R.DTensor((8,), "float32", "mesh[0]", "S[0]")
+                ) -> R.DTensor((8,), "float32", "mesh[0]", "S[0]"):
+                    return x
+                @R.function
+                def device(
+                    x: R.Tensor((8,), "float32", "llvm")
+                ) -> R.Tensor((8,), "float32", "llvm"):
+                    return x
+            return Mod
+        mod = factory()
+        """,
+        postponed,
+        monkeypatch,
+    ).mod
+    for name, field, key in [
+        ("distributed", "device_mesh", "mesh"),
+        ("device", "vdevice", "vdevice"),
+    ]:
+        function = module[name]
+        for annotation in [function.params[0].ty, function.ret_ty]:
+            actual = getattr(annotation, field)
+            assert actual.__chandle__() == module.global_infos[key][0].__chandle__()

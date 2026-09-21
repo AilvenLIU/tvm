@@ -17,8 +17,6 @@
 # ruff: noqa: F401
 """Test eliminate common subexpr pass"""
 
-from __future__ import annotations
-
 import tvm
 import tvm.testing
 from tvm.relax import VDevice

@@ -17,8 +17,6 @@
 # ruff: noqa: E501, F401, F841
 """Integration test for MetaSchedule"""
 
-from __future__ import annotations
-
 import tempfile
 
 import numpy as np

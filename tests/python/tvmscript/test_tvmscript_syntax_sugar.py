@@ -16,8 +16,6 @@
 # under the License.
 # pylint: disable=missing-function-docstring,missing-module-docstring,invalid-name,pointless-string-statement
 # ruff: noqa: E741, F401, F841
-from __future__ import annotations
-
 import sys
 from typing import Any
 

@@ -17,8 +17,6 @@
 # ruff: noqa: E501, F841
 
 
-from __future__ import annotations
-
 import tvm
 import tvm.testing
 from tvm import relax, topi

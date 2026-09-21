@@ -14,8 +14,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from __future__ import annotations
-
 import tvm
 from tvm.s_tir.meta_schedule.testing import te_workload
 from tvm.script import ir as I

@@ -16,8 +16,6 @@
 # under the License.
 """Tests for the Executable class."""
 
-from __future__ import annotations
-
 import os
 import tempfile
 

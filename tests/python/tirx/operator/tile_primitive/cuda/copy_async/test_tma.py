@@ -16,8 +16,6 @@
 
 """Tests for the independent ``tma_auto`` and ``tma_explicit`` planners."""
 
-from __future__ import annotations
-
 from dataclasses import dataclass, replace
 from functools import reduce
 from operator import mul

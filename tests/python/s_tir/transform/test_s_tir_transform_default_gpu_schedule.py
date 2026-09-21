@@ -16,8 +16,6 @@
 # under the License.
 # pylint: disable=invalid-name,,missing-function-docstring
 # ruff: noqa: E501, F841
-from __future__ import annotations
-
 import tvm
 import tvm.testing
 from tvm.s_tir.transform import DefaultGPUSchedule

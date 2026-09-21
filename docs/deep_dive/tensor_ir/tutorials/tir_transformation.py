@@ -25,8 +25,6 @@ In this section, we will get to the main ingredients of the compilation flows -
 transformations of primitive tensor functions.
 """
 
-from __future__ import annotations
-
 ######################################################################
 # In the :ref:`previous section <tirx-learning>`, we have given an example of how to write
 # ``mm_relu`` using TensorIR. In practice, there can be multiple ways to implement
@@ -37,6 +35,7 @@ from __future__ import annotations
 #   rather than delving into optimization techniques.
 #
 # First, let's take a look at the implementation of ``mm_relu`` in the previous section:
+
 import tvm
 from tvm.script import ir as I
 from tvm.script import tirx as T

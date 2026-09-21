@@ -17,8 +17,6 @@
 # ruff: noqa: F401
 """Test the tune context of meta schedule."""
 
-from __future__ import annotations
-
 import sys
 
 import pytest

@@ -16,8 +16,6 @@
 # under the License.
 """Tests for T.inline / T.inline with Python LEGB scoping semantics."""
 
-from __future__ import annotations
-
 from tvm.ir import assert_structural_equal
 from tvm.script import tirx as T
 

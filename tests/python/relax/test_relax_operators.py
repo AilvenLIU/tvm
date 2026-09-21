@@ -16,8 +16,6 @@
 # under the License.
 # ruff: noqa: E501, F841
 
-from __future__ import annotations
-
 import subprocess
 import sys
 import tempfile

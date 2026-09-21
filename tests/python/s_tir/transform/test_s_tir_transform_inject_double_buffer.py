@@ -16,8 +16,6 @@
 # under the License.
 # ruff: noqa: F841
 
-from __future__ import annotations
-
 import tvm_ffi
 
 import tvm

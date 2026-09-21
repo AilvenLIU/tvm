@@ -17,8 +17,6 @@
 # pylint: disable=missing-function-docstring
 """Tests for cp.async.bulk.shared::cluster.shared::cta PTX instruction codegen."""
 
-from __future__ import annotations
-
 import tvm_ffi
 
 import tvm

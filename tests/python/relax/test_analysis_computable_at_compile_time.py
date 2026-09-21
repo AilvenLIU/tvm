@@ -17,8 +17,6 @@
 # ruff: noqa: F841
 
 
-from __future__ import annotations
-
 import tvm
 import tvm.testing
 from tvm.script import relax as R

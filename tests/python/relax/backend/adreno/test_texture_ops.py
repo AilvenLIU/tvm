@@ -15,8 +15,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from __future__ import annotations
-
 import pytest
 from utils import skip_unless_adreno_opencl_vulkan, verify_results
 

@@ -31,8 +31,6 @@ Most assertions run the CPU-only ``LowerTIRx`` transform; the numerical check
 is guarded by ``requires_cuda`` since it needs a real device.
 """
 
-from __future__ import annotations
-
 import numpy as np
 import pytest
 

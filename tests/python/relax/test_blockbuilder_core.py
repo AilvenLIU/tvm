@@ -17,8 +17,6 @@
 # ruff: noqa: F401, F841
 """Block builder unit test"""
 
-from __future__ import annotations
-
 # The test here do not depend on tvmscript to cover most basic features
 import pytest
 

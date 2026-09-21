@@ -18,8 +18,6 @@
 # ruff: noqa: E501
 
 
-from __future__ import annotations
-
 import tvm
 import tvm.script
 import tvm.testing

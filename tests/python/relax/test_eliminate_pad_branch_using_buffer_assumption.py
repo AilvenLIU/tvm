@@ -20,8 +20,6 @@
 # The test attempts to eliminate redundant pad branch and overcompute the value for elementwise ops.
 # This helps to expose more opportunities to vectorize the code.
 
-from __future__ import annotations
-
 import tvm_ffi
 
 import tvm

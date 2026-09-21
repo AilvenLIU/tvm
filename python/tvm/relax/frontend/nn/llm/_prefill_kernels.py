@@ -24,7 +24,6 @@ skeleton that is built up from ``@T.macro`` helpers in
 ``_kernel_common._make_prefill_macros``. Each kernel only supplies the
 K/V loading path that is specific to its storage layout.
 """
-from __future__ import annotations
 
 # pylint: disable=too-many-statements,too-many-arguments,invalid-name,line-too-long
 import math

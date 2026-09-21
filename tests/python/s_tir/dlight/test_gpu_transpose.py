@@ -16,8 +16,6 @@
 # under the License.
 # pylint: disable=missing-docstring
 # ruff: noqa: E501, F401
-from __future__ import annotations
-
 import tvm
 from tvm.ir import IRModule, assert_structural_equal
 from tvm.s_tir import dlight as dl

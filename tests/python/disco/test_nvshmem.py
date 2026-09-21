@@ -16,8 +16,6 @@
 # under the License.
 """Basic tests for a Disco nvshmem support"""
 
-from __future__ import annotations
-
 # pylint: disable=missing-docstring
 import multiprocessing
 import os

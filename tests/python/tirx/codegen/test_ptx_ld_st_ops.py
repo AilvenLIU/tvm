@@ -16,8 +16,6 @@
 # under the License.
 """Unit tests for the ptx ``ld`` / ``st`` entries, scalar and vector."""
 
-from __future__ import annotations
-
 import numpy as np
 import pytest
 

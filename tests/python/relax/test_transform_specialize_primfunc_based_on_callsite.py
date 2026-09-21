@@ -16,8 +16,6 @@
 # under the License.
 # ruff: noqa: E501, F401, F821
 
-from __future__ import annotations
-
 import tvm
 import tvm.testing
 from tvm import relax

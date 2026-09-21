@@ -16,8 +16,6 @@
 # under the License.
 # pylint: disable=missing-module-docstring,missing-function-docstring,missing-class-docstring
 # ruff: noqa: E741, F401
-from __future__ import annotations
-
 import tvm.testing
 from tvm import te
 from tvm.s_tir import meta_schedule as ms

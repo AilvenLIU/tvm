@@ -15,8 +15,6 @@
 # specific language governing permissions and limitations
 # under the License.
 # pylint: disable=missing-docstring,
-from __future__ import annotations
-
 from collections.abc import Sequence
 
 import numpy as np

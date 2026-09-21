@@ -14,8 +14,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from __future__ import annotations
-
 import tvm.testing
 from tvm import relax
 from tvm.ir.base import assert_structural_equal

@@ -52,8 +52,6 @@ warpx2::01_23  rows 0-31 → lanes 0-31,         +0 / +32
 =============  ==============================  ====================
 """
 
-from __future__ import annotations
-
 import itertools
 
 import numpy as np
