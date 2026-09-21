@@ -54,6 +54,9 @@ class _Recorder:
     def setitem(self, target, key, value, **metadata):
         target[key] = value
 
+    def setattr(self, target, name, value, **metadata):
+        setattr(target, name, value)
+
     def unpack(self, value):
         return value
 
@@ -124,6 +127,14 @@ def test_assignment_order_and_hierarchical_unpack():
             events.append(("store", value))
             super().__setitem__(key, value)
 
+        @property
+        def field(self):
+            return self[0]
+
+        @field.setter
+        def field(self, value):
+            self[0] = value
+
     target = Target()
 
     def base():
@@ -144,6 +155,8 @@ def test_assignment_order_and_hierarchical_unpack():
         def f():
             base()[index()] = value()
             base()[index()] += value()
+            base().field = value()
+            base().field += value()
             base()[index()], (a, b) = (1, (2,))
         """,
         {"base": base, "index": index, "value": value},
@@ -157,6 +170,13 @@ def test_assignment_order_and_hierarchical_unpack():
         ("store", 7),
         "base",
         "index",
+        "read",
+        "value",
+        ("store", 14),
+        "value",
+        "base",
+        ("store", 7),
+        "base",
         "read",
         "value",
         ("store", 14),

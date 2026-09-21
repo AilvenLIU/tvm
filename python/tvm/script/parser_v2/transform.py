@@ -331,6 +331,17 @@ class Transformer(ast.NodeTransformer):
                     target.id, self._operation("bind_", [value], statement, **keywords), target
                 )
             ]
+        if isinstance(target, ast.Attribute):
+            return [
+                self._statement(
+                    self._operation(
+                        "setattr",
+                        [self._expression(target.value), ast.Constant(target.attr), value],
+                        statement,
+                    ),
+                    statement,
+                )
+            ]
         if isinstance(target, ast.Subscript):
             return [
                 self._statement(
@@ -440,15 +451,24 @@ class Transformer(ast.NodeTransformer):
             value = self._located(ast.BinOp(previous, node.op, self._expression(node.value)), node)
             value = self._call(self.infrastructure_name, "_at", [self.span(node), value], node)
             return result + self._bind(node.target, value, node)
-        if not isinstance(node.target, ast.Subscript):
-            self._error(node.target, "An augmented assignment requires a name or index")
+        if not isinstance(node.target, ast.Subscript | ast.Attribute):
+            self._error(node.target, "An augmented assignment requires a name, attribute, or index")
         base_stmt, base = self._cache(
             self._expression(node.target.value), node.target.value, "base"
         )
-        key_stmt, key = self._cache(self._index(node.target.slice), node.target.slice, "key")
-        load = self._located(
-            ast.Subscript(copy.deepcopy(base), copy.deepcopy(key), ast.Load()), node.target
-        )
+        result.append(base_stmt)
+        if isinstance(node.target, ast.Attribute):
+            key, operation = ast.Constant(node.target.attr), "setattr"
+            load = self._located(
+                ast.Attribute(copy.deepcopy(base), node.target.attr, ast.Load()), node.target
+            )
+        else:
+            key_stmt, key = self._cache(self._index(node.target.slice), node.target.slice, "key")
+            result.append(key_stmt)
+            operation = "setitem"
+            load = self._located(
+                ast.Subscript(copy.deepcopy(base), copy.deepcopy(key), ast.Load()), node.target
+            )
         old_stmt, old = self._cache(
             self._call(
                 self.infrastructure_name, "_at", [self.span(node.target), load], node.target
@@ -456,10 +476,10 @@ class Transformer(ast.NodeTransformer):
             node.target,
             "old",
         )
-        result.extend([base_stmt, key_stmt, old_stmt])
+        result.append(old_stmt)
         value = self._located(ast.BinOp(old, node.op, self._expression(node.value)), node)
         value = self._call(self.infrastructure_name, "_at", [self.span(node), value], node)
-        result.append(self._statement(self._operation("setitem", [base, key, value], node), node))
+        result.append(self._statement(self._operation(operation, [base, key, value], node), node))
         return result
 
     def visit_Expr(self, node):
